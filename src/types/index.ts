@@ -28,6 +28,8 @@ export interface GiftItem {
   updated_at: string;
 }
 
+export type PublicPage = 'presentes' | 'recados' | 'confirmar';
+
 export interface SiteConfig {
   hero_image_url?: string;
   logo_url?: string;
@@ -35,6 +37,7 @@ export interface SiteConfig {
   event_date?: string;
   event_time?: string;
   event_location?: string;
+  hidden_pages?: PublicPage[];
 }
 
 export interface GuestMessage {

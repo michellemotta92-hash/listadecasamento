@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Settings, Info, Image as ImageIcon, Save, Check } from 'lucide-react';
+import { Settings, Info, Image as ImageIcon, Save, Check, Eye, EyeOff } from 'lucide-react';
 import { appConfig } from '@/lib/config';
 import ImageUploader from '@/components/admin/ImageUploader';
 import { getSiteConfig, updateSiteConfig } from '@/lib/services/site-config';
 import { uploadImage } from '@/lib/services/images';
-import { SiteConfig } from '@/types';
+import { SiteConfig, PublicPage } from '@/types';
 
 export default function AdminConfigPage() {
   const [siteConfig, setSiteConfig] = useState<SiteConfig>({});
@@ -17,6 +17,7 @@ export default function AdminConfigPage() {
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
   const [eventLocation, setEventLocation] = useState('');
+  const [hiddenPages, setHiddenPages] = useState<PublicPage[]>([]);
 
   useEffect(() => {
     getSiteConfig().then((config) => {
@@ -25,6 +26,7 @@ export default function AdminConfigPage() {
       setEventDate(config.event_date || '2026-10-12');
       setEventTime(config.event_time || '16:00');
       setEventLocation(config.event_location || 'Fazenda Paraíso, São Paulo, SP');
+      setHiddenPages(config.hidden_pages || []);
     });
   }, []);
 
@@ -37,6 +39,7 @@ export default function AdminConfigPage() {
         event_date: eventDate,
         event_time: eventTime,
         event_location: eventLocation,
+        hidden_pages: hiddenPages,
       };
       await updateSiteConfig(updates);
       setSiteConfig(prev => ({ ...prev, ...updates }));
@@ -171,6 +174,76 @@ export default function AdminConfigPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Page Visibility */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+            <Eye className="w-4 h-4 text-amber-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Visibilidade das Páginas</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Oculte páginas do site público. Páginas ocultas ficam como rascunho e só o admin pode acessar.</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {([
+            { key: 'presentes' as PublicPage, label: 'Lista de Presentes', desc: 'Página com todos os presentes sugeridos' },
+            { key: 'recados' as PublicPage, label: 'Recados', desc: 'Mural de recados dos convidados' },
+            { key: 'confirmar' as PublicPage, label: 'RSVP / Confirmação de Presença', desc: 'Formulário de confirmação dos convidados' },
+          ]).map((page) => {
+            const isHidden = hiddenPages.includes(page.key);
+            return (
+              <div
+                key={page.key}
+                className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
+                  isHidden ? 'bg-amber-50/50 border-amber-200' : 'bg-slate-50/50 border-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  {isHidden ? (
+                    <EyeOff className="w-4 h-4 text-amber-500" />
+                  ) : (
+                    <Eye className="w-4 h-4 text-green-500" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">
+                      {page.label}
+                      {isHidden && (
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700">
+                          Rascunho
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-slate-400">{page.desc}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setHiddenPages(prev =>
+                      prev.includes(page.key)
+                        ? prev.filter(p => p !== page.key)
+                        : [...prev, page.key]
+                    );
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    isHidden
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                      : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                  }`}
+                >
+                  {isHidden ? 'Publicar' : 'Ocultar'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="text-xs text-slate-400">
+          Clique em "Salvar Alterações" acima para aplicar as mudanças de visibilidade.
+        </p>
       </div>
 
       {/* Site Images */}

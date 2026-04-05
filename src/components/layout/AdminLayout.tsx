@@ -1,15 +1,18 @@
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useParams, useLocation } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'motion/react';
 import { LayoutDashboard, Gift, CalendarClock, Settings, LogOut, ExternalLink, MessageSquare, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getSiteConfig } from '@/lib/services/site-config';
+import { PublicPage } from '@/types';
 
-const navItems = [
+const navItems: { label: string; path: string; icon: any; publicPage?: PublicPage }[] = [
   { label: 'Dashboard', path: '', icon: LayoutDashboard },
-  { label: 'Presentes', path: '/presentes', icon: Gift },
+  { label: 'Presentes', path: '/presentes', icon: Gift, publicPage: 'presentes' },
   { label: 'Reservas', path: '/reservas', icon: CalendarClock },
-  { label: 'Recados', path: '/recados', icon: MessageSquare },
-  { label: 'Confirmações', path: '/confirmacoes', icon: Users },
+  { label: 'Recados', path: '/recados', icon: MessageSquare, publicPage: 'recados' },
+  { label: 'Confirmações', path: '/confirmacoes', icon: Users, publicPage: 'confirmar' },
   { label: 'Configurações', path: '/config', icon: Settings },
 ];
 
@@ -17,6 +20,13 @@ export default function AdminLayout() {
   const { domain } = useParams();
   const { signOut } = useAuth();
   const location = useLocation();
+  const [hiddenPages, setHiddenPages] = useState<PublicPage[]>([]);
+
+  useEffect(() => {
+    getSiteConfig().then(config => {
+      setHiddenPages(config.hidden_pages || []);
+    });
+  }, []);
 
   const handleLogout = async () => {
     await signOut();
@@ -42,6 +52,7 @@ export default function AdminLayout() {
               const fullPath = basePath + item.path;
               const isActive = location.pathname === fullPath ||
                 (item.path !== '' && location.pathname.startsWith(fullPath));
+              const isDraft = item.publicPage && hiddenPages.includes(item.publicPage);
 
               return (
                 <Link
@@ -62,7 +73,12 @@ export default function AdminLayout() {
                     />
                   )}
                   <item.icon className="w-4 h-4 relative z-10" />
-                  <span className="relative z-10">{item.label}</span>
+                  <span className="relative z-10 flex-1">{item.label}</span>
+                  {isDraft && (
+                    <span className="relative z-10 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                      Rascunho
+                    </span>
+                  )}
                 </Link>
               );
             })}
