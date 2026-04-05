@@ -1,4 +1,4 @@
 export const appConfig = {
-  isDemoMode: import.meta.env.VITE_DEMO_MODE !== 'false',
+  isDemoMode: import.meta.env.VITE_DEMO_MODE === 'true',
   defaultTenant: 'miejohn',
 };
