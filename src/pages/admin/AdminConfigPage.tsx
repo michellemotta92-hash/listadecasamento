@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Settings, Info, Image as ImageIcon, Save, Check, Eye, EyeOff } from 'lucide-react';
+import { Settings, Info, Image as ImageIcon, Save, Check, Eye, EyeOff, Type } from 'lucide-react';
 import { appConfig } from '@/lib/config';
 import ImageUploader from '@/components/admin/ImageUploader';
 import { getSiteConfig, updateSiteConfig } from '@/lib/services/site-config';
 import { uploadImage } from '@/lib/services/images';
-import { SiteConfig, PublicPage } from '@/types';
+import { SiteConfig, PublicPage, PageTexts } from '@/types';
 
 export default function AdminConfigPage() {
   const [siteConfig, setSiteConfig] = useState<SiteConfig>({});
@@ -18,6 +18,7 @@ export default function AdminConfigPage() {
   const [eventTime, setEventTime] = useState('');
   const [eventLocation, setEventLocation] = useState('');
   const [hiddenPages, setHiddenPages] = useState<PublicPage[]>([]);
+  const [pageTexts, setPageTexts] = useState<PageTexts>({});
 
   useEffect(() => {
     getSiteConfig().then((config) => {
@@ -27,8 +28,13 @@ export default function AdminConfigPage() {
       setEventTime(config.event_time || '16:00');
       setEventLocation(config.event_location || 'Fazenda Paraíso, São Paulo, SP');
       setHiddenPages(config.hidden_pages || []);
+      setPageTexts(config.page_texts || {});
     });
   }, []);
+
+  const updateText = (key: keyof PageTexts, value: string) => {
+    setPageTexts(prev => ({ ...prev, [key]: value }));
+  };
 
   const handleSaveEventInfo = async () => {
     setSaving(true);
@@ -40,6 +46,7 @@ export default function AdminConfigPage() {
         event_time: eventTime,
         event_location: eventLocation,
         hidden_pages: hiddenPages,
+        page_texts: pageTexts,
       };
       await updateSiteConfig(updates);
       setSiteConfig(prev => ({ ...prev, ...updates }));
@@ -217,6 +224,167 @@ export default function AdminConfigPage() {
         <p className="text-xs text-slate-400">
           Clique em "Salvar Alterações" abaixo para aplicar as mudanças de visibilidade.
         </p>
+      </div>
+
+      {/* Page Texts */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center">
+            <Type className="w-4 h-4 text-violet-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Textos das Páginas</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Personalize os títulos e textos de cada página do site. Deixe em branco para usar o texto padrão.</p>
+          </div>
+        </div>
+
+        {/* Home */}
+        <div className="space-y-3 p-4 rounded-xl bg-slate-50/50 border border-slate-100">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Página Inicial</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-medium text-slate-400 mb-1">Subtítulo</label>
+              <input
+                type="text"
+                value={pageTexts.home_subtitle || ''}
+                onChange={(e) => updateText('home_subtitle', e.target.value)}
+                placeholder="Estamos nos casando"
+                className="block w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-400 mb-1">Texto do card Presentes</label>
+              <input
+                type="text"
+                value={pageTexts.home_gifts_card || ''}
+                onChange={(e) => updateText('home_gifts_card', e.target.value)}
+                placeholder="Veja nossa lista de presentes sugeridos."
+                className="block w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-slate-400 mb-1">Descrição principal</label>
+            <textarea
+              value={pageTexts.home_description || ''}
+              onChange={(e) => updateText('home_description', e.target.value)}
+              placeholder="Estamos muito felizes em compartilhar esse momento tão especial com vocês. Aqui você encontra todas as informações sobre o nosso grande dia."
+              rows={2}
+              className="block w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Gifts */}
+        <div className="space-y-3 p-4 rounded-xl bg-slate-50/50 border border-slate-100">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Lista de Presentes</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-medium text-slate-400 mb-1">Subtítulo</label>
+              <input
+                type="text"
+                value={pageTexts.gifts_subtitle || ''}
+                onChange={(e) => updateText('gifts_subtitle', e.target.value)}
+                placeholder="Nossa lista"
+                className="block w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-400 mb-1">Título</label>
+              <input
+                type="text"
+                value={pageTexts.gifts_title || ''}
+                onChange={(e) => updateText('gifts_title', e.target.value)}
+                placeholder="Lista de Presentes"
+                className="block w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-slate-400 mb-1">Descrição</label>
+            <textarea
+              value={pageTexts.gifts_description || ''}
+              onChange={(e) => updateText('gifts_description', e.target.value)}
+              placeholder="Montamos nossa casa com muito carinho. Se desejar nos presentear, escolhemos alguns itens que adoraríamos ter."
+              rows={2}
+              className="block w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="space-y-3 p-4 rounded-xl bg-slate-50/50 border border-slate-100">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Recados</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-medium text-slate-400 mb-1">Subtítulo</label>
+              <input
+                type="text"
+                value={pageTexts.messages_subtitle || ''}
+                onChange={(e) => updateText('messages_subtitle', e.target.value)}
+                placeholder="Mural"
+                className="block w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-400 mb-1">Título</label>
+              <input
+                type="text"
+                value={pageTexts.messages_title || ''}
+                onChange={(e) => updateText('messages_title', e.target.value)}
+                placeholder="Recados & Votos"
+                className="block w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-slate-400 mb-1">Descrição</label>
+            <textarea
+              value={pageTexts.messages_description || ''}
+              onChange={(e) => updateText('messages_description', e.target.value)}
+              placeholder="Deixe uma mensagem carinhosa para os noivos. Cada palavra sera guardada com muito amor."
+              rows={2}
+              className="block w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+            />
+          </div>
+        </div>
+
+        {/* RSVP */}
+        <div className="space-y-3 p-4 rounded-xl bg-slate-50/50 border border-slate-100">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">RSVP / Confirmação de Presença</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-medium text-slate-400 mb-1">Subtítulo</label>
+              <input
+                type="text"
+                value={pageTexts.rsvp_subtitle || ''}
+                onChange={(e) => updateText('rsvp_subtitle', e.target.value)}
+                placeholder="RSVP"
+                className="block w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-400 mb-1">Título</label>
+              <input
+                type="text"
+                value={pageTexts.rsvp_title || ''}
+                onChange={(e) => updateText('rsvp_title', e.target.value)}
+                placeholder="Confirme sua Presenca"
+                className="block w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-slate-400 mb-1">Descrição</label>
+            <textarea
+              value={pageTexts.rsvp_description || ''}
+              onChange={(e) => updateText('rsvp_description', e.target.value)}
+              placeholder="Ficaremos muito felizes com a sua presenca. Por favor, confirme ate o dia 01/09/2026."
+              rows={2}
+              className="block w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Site Images */}

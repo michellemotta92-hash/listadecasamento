@@ -2,13 +2,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { MessageSquare, Loader2 } from 'lucide-react';
 import { getApprovedMessages } from '@/lib/services/messages';
-import { GuestMessage } from '@/types';
+import { GuestMessage, PageTexts } from '@/types';
 import MessageCard from '@/components/public/MessageCard';
 import MessageForm from '@/components/public/MessageForm';
+import { getSiteConfig } from '@/lib/services/site-config';
 
 export default function MessagesPage() {
   const [messages, setMessages] = useState<GuestMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [texts, setTexts] = useState<PageTexts>({});
+
+  useEffect(() => {
+    getSiteConfig().then(c => setTexts(c.page_texts || {}));
+  }, []);
 
   const loadMessages = useCallback(async () => {
     const data = await getApprovedMessages();
@@ -27,13 +33,13 @@ export default function MessagesPage() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center space-y-4"
       >
-        <p className="text-xs uppercase tracking-[0.3em] text-[#a89e95] font-medium">Mural</p>
+        <p className="text-xs uppercase tracking-[0.3em] text-[#a89e95] font-medium">{texts.messages_subtitle || 'Mural'}</p>
         <h2 className="font-heading text-4xl md:text-5xl lg:text-6xl font-light text-[#4a3f38] tracking-wide">
-          Recados & Votos
+          {texts.messages_title || 'Recados & Votos'}
         </h2>
         <div className="divider-ornament" />
         <p className="text-[#8a7e76] max-w-xl mx-auto leading-relaxed font-light text-lg">
-          Deixe uma mensagem carinhosa para os noivos. Cada palavra sera guardada com muito amor.
+          {texts.messages_description || 'Deixe uma mensagem carinhosa para os noivos. Cada palavra sera guardada com muito amor.'}
         </p>
       </motion.div>
 

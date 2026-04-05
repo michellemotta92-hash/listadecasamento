@@ -43,6 +43,7 @@ export default function HomePage() {
   const coupleName = config.couple_name || 'Mi & John';
   const eventDateStr = formatEventDate(config.event_date, config.event_time);
   const locationStr = formatLocation(config.event_location);
+  const t = config.page_texts || {};
 
   return (
     <div className="flex flex-col items-center space-y-24">
@@ -60,14 +61,13 @@ export default function HomePage() {
         >
           <Heart className="w-6 h-6 text-primary-400 mx-auto mb-6" />
         </motion.div>
-        <p className="text-xs uppercase tracking-[0.3em] text-[#a89e95] font-medium">Estamos nos casando</p>
+        <p className="text-xs uppercase tracking-[0.3em] text-[#a89e95] font-medium">{t.home_subtitle || 'Estamos nos casando'}</p>
         <h2 className="font-script text-6xl md:text-8xl lg:text-9xl text-primary-700 leading-none">
           {coupleName}
         </h2>
         <div className="divider-ornament" />
         <p className="font-body text-lg text-[#7a6e65] leading-relaxed font-light max-w-lg mx-auto">
-          Estamos muito felizes em compartilhar esse momento tão especial com vocês.
-          Aqui você encontra todas as informações sobre o nosso grande dia.
+          {t.home_description || 'Estamos muito felizes em compartilhar esse momento tão especial com vocês. Aqui você encontra todas as informações sobre o nosso grande dia.'}
         </p>
       </motion.div>
 
@@ -111,7 +111,7 @@ export default function HomePage() {
           {
             icon: Gift,
             title: 'Presentes',
-            content: 'Veja nossa lista de\npresentes sugeridos.',
+            content: t.home_gifts_card || 'Veja nossa lista de\npresentes sugeridos.',
             delay: 0.6,
             link: `/${domain}/presentes`,
           },

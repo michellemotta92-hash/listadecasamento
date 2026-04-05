@@ -30,6 +30,21 @@ export interface GiftItem {
 
 export type PublicPage = 'presentes' | 'recados' | 'confirmar';
 
+export interface PageTexts {
+  home_subtitle?: string;
+  home_description?: string;
+  home_gifts_card?: string;
+  gifts_subtitle?: string;
+  gifts_title?: string;
+  gifts_description?: string;
+  messages_subtitle?: string;
+  messages_title?: string;
+  messages_description?: string;
+  rsvp_subtitle?: string;
+  rsvp_title?: string;
+  rsvp_description?: string;
+}
+
 export interface SiteConfig {
   hero_image_url?: string;
   logo_url?: string;
@@ -38,6 +53,7 @@ export interface SiteConfig {
   event_time?: string;
   event_location?: string;
   hidden_pages?: PublicPage[];
+  page_texts?: PageTexts;
 }
 
 export interface GuestMessage {

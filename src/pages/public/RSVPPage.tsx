@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Heart, Send, Loader2, CheckCircle2, Users, UtensilsCrossed, MessageCircle } from 'lucide-react';
 import { addRSVP } from '@/lib/services/rsvp';
+import { getSiteConfig } from '@/lib/services/site-config';
+import { PageTexts } from '@/types';
 
 export default function RSVPPage() {
+  const [texts, setTexts] = useState<PageTexts>({});
   const [form, setForm] = useState({
     guest_name: '',
     guest_email: '',
@@ -14,6 +17,10 @@ export default function RSVPPage() {
   });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    getSiteConfig().then(c => setTexts(c.page_texts || {}));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,13 +49,13 @@ export default function RSVPPage() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center space-y-4"
       >
-        <p className="text-xs uppercase tracking-[0.3em] text-[#a89e95] font-medium">RSVP</p>
+        <p className="text-xs uppercase tracking-[0.3em] text-[#a89e95] font-medium">{texts.rsvp_subtitle || 'RSVP'}</p>
         <h2 className="font-heading text-4xl md:text-5xl lg:text-6xl font-light text-[#4a3f38] tracking-wide">
-          Confirme sua Presenca
+          {texts.rsvp_title || 'Confirme sua Presenca'}
         </h2>
         <div className="divider-ornament" />
         <p className="text-[#8a7e76] max-w-xl mx-auto leading-relaxed font-light text-lg">
-          Ficaremos muito felizes com a sua presenca. Por favor, confirme ate o dia 01/09/2026.
+          {texts.rsvp_description || 'Ficaremos muito felizes com a sua presenca. Por favor, confirme ate o dia 01/09/2026.'}
         </p>
       </motion.div>
 
