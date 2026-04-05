@@ -6,14 +6,16 @@ import GiftEditModal from '@/components/admin/GiftEditModal';
 import { formatCurrency } from '@/lib/utils';
 import { updateGift } from '@/lib/services/gifts';
 import { motion, AnimatePresence } from 'motion/react';
-import { Package, Loader2, ExternalLink, Eye, Star, Pencil } from 'lucide-react';
+import { Package, Loader2, ExternalLink, Eye, Star, Pencil, Copy } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 import { GiftItem } from '@/types';
+import { addGift } from '@/lib/services/gifts';
 
 export default function AdminGiftsPage() {
   const { gifts, loading, refresh } = useGifts();
   const { domain } = useParams();
   const [editingGift, setEditingGift] = useState<GiftItem | null>(null);
+  const [duplicating, setDuplicating] = useState<string | null>(null);
 
   const totalGifts = gifts.length;
   const boughtGifts = gifts.filter(g => g.status === 'comprado').length;
@@ -23,6 +25,28 @@ export default function AdminGiftsPage() {
   const handleToggleFeatured = async (gift: GiftItem) => {
     await updateGift(gift.id, { is_featured: !gift.is_featured });
     refresh();
+  };
+
+  const handleDuplicate = async (gift: GiftItem) => {
+    setDuplicating(gift.id);
+    try {
+      await addGift({
+        tenant_id: gift.tenant_id,
+        name: `${gift.name} (cópia)`,
+        description: gift.description,
+        price: gift.price,
+        room: gift.room,
+        color: gift.color,
+        store_name: gift.store_name,
+        store_link: gift.store_link,
+        status: 'disponivel',
+        is_featured: false,
+        image_url: gift.image_url,
+      });
+      refresh();
+    } finally {
+      setDuplicating(null);
+    }
   };
 
   if (loading) {
@@ -130,6 +154,18 @@ export default function AdminGiftsPage() {
                         title="Editar produto"
                       >
                         <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDuplicate(gift)}
+                        disabled={duplicating === gift.id}
+                        className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600 transition-colors disabled:opacity-50"
+                        title="Duplicar item"
+                      >
+                        {duplicating === gift.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
                       </button>
                       {gift.store_link && (
                         <a

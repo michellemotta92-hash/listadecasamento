@@ -31,6 +31,10 @@ export interface GiftItem {
 export interface SiteConfig {
   hero_image_url?: string;
   logo_url?: string;
+  couple_name?: string;
+  event_date?: string;
+  event_time?: string;
+  event_location?: string;
 }
 
 export interface GuestMessage {

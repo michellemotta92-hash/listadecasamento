@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Settings, Info, Image as ImageIcon } from 'lucide-react';
+import { Settings, Info, Image as ImageIcon, Save, Check } from 'lucide-react';
 import { appConfig } from '@/lib/config';
 import ImageUploader from '@/components/admin/ImageUploader';
 import { getSiteConfig, updateSiteConfig } from '@/lib/services/site-config';
@@ -10,10 +10,42 @@ import { SiteConfig } from '@/types';
 export default function AdminConfigPage() {
   const [siteConfig, setSiteConfig] = useState<SiteConfig>({});
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // Controlled form fields
+  const [coupleName, setCoupleName] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
+  const [eventLocation, setEventLocation] = useState('');
 
   useEffect(() => {
-    getSiteConfig().then(setSiteConfig);
+    getSiteConfig().then((config) => {
+      setSiteConfig(config);
+      setCoupleName(config.couple_name || 'Mi & John');
+      setEventDate(config.event_date || '2026-10-12');
+      setEventTime(config.event_time || '16:00');
+      setEventLocation(config.event_location || 'Fazenda Paraíso, São Paulo, SP');
+    });
   }, []);
+
+  const handleSaveEventInfo = async () => {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const updates: Partial<SiteConfig> = {
+        couple_name: coupleName,
+        event_date: eventDate,
+        event_time: eventTime,
+        event_location: eventLocation,
+      };
+      await updateSiteConfig(updates);
+      setSiteConfig(prev => ({ ...prev, ...updates }));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleHeroUpload = async (file: File) => {
     setSaving(true);
@@ -77,44 +109,67 @@ export default function AdminConfigPage() {
               <label className="block text-xs font-medium text-slate-500 mb-1.5">Nome do Casal</label>
               <input
                 type="text"
-                defaultValue="Mi & John"
+                value={coupleName}
+                onChange={(e) => setCoupleName(e.target.value)}
                 className="block w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                disabled={appConfig.isDemoMode}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5">Data do Evento</label>
               <input
                 type="date"
-                defaultValue="2026-10-12"
+                value={eventDate}
+                onChange={(e) => setEventDate(e.target.value)}
                 className="block w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                disabled={appConfig.isDemoMode}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5">Local</label>
               <input
                 type="text"
-                defaultValue="Fazenda Paraíso, São Paulo, SP"
+                value={eventLocation}
+                onChange={(e) => setEventLocation(e.target.value)}
                 className="block w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                disabled={appConfig.isDemoMode}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5">Horário</label>
               <input
                 type="time"
-                defaultValue="16:00"
+                value={eventTime}
+                onChange={(e) => setEventTime(e.target.value)}
                 className="block w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                disabled={appConfig.isDemoMode}
               />
             </div>
           </div>
-          {appConfig.isDemoMode && (
-            <p className="text-xs text-slate-400">
-              Edição desabilitada no modo demonstração. Conecte ao PostgreSQL para habilitar.
-            </p>
-          )}
+
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              onClick={handleSaveEventInfo}
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+            >
+              {saving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Salvando...
+                </>
+              ) : saved ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Salvo!
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Salvar Alterações
+                </>
+              )}
+            </button>
+            {saved && (
+              <span className="text-xs text-green-600 animate-pulse">Configurações salvas com sucesso!</span>
+            )}
+          </div>
         </div>
       </div>
 
