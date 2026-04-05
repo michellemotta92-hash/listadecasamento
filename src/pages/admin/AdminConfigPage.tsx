@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Settings, Info, Image as ImageIcon, Save, Check, Eye, EyeOff, Type } from 'lucide-react';
+import { Settings, Info, Image as ImageIcon, Save, Check, Eye, EyeOff, Type, Shield, Plus, Trash2, Pencil, X, Key } from 'lucide-react';
 import { appConfig } from '@/lib/config';
 import ImageUploader from '@/components/admin/ImageUploader';
 import { getSiteConfig, updateSiteConfig } from '@/lib/services/site-config';
 import { uploadImage } from '@/lib/services/images';
+import { api } from '@/lib/api';
 import { SiteConfig, PublicPage, PageTexts } from '@/types';
+
+interface AdminUser {
+  id: string;
+  username: string;
+  name: string;
+  created_at: string;
+}
 
 export default function AdminConfigPage() {
   const [siteConfig, setSiteConfig] = useState<SiteConfig>({});
@@ -19,6 +27,60 @@ export default function AdminConfigPage() {
   const [eventLocation, setEventLocation] = useState('');
   const [hiddenPages, setHiddenPages] = useState<PublicPage[]>([]);
   const [pageTexts, setPageTexts] = useState<PageTexts>({});
+
+  // Admin users
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [showNewUser, setShowNewUser] = useState(false);
+  const [newUser, setNewUser] = useState({ username: '', password: '', name: '' });
+  const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ username: '', password: '', name: '' });
+  const [adminError, setAdminError] = useState('');
+
+  const loadAdmins = () => {
+    api.get<AdminUser[]>('/admin-users').then(setAdminUsers).catch(() => {});
+  };
+
+  useEffect(() => {
+    loadAdmins();
+  }, []);
+
+  const handleCreateUser = async () => {
+    setAdminError('');
+    if (!newUser.username || !newUser.password) { setAdminError('Usuário e senha são obrigatórios.'); return; }
+    try {
+      await api.post('/admin-users', newUser);
+      setNewUser({ username: '', password: '', name: '' });
+      setShowNewUser(false);
+      loadAdmins();
+    } catch (e: any) {
+      setAdminError(e.message || 'Erro ao criar usuário.');
+    }
+  };
+
+  const handleUpdateUser = async (id: string) => {
+    setAdminError('');
+    const updates: any = {};
+    if (editForm.username) updates.username = editForm.username;
+    if (editForm.password) updates.password = editForm.password;
+    if (editForm.name) updates.name = editForm.name;
+    try {
+      await api.patch(`/admin-users/${id}`, updates);
+      setEditingUser(null);
+      loadAdmins();
+    } catch (e: any) {
+      setAdminError(e.message || 'Erro ao atualizar.');
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    if (!confirm('Tem certeza que deseja remover este administrador?')) return;
+    try {
+      await api.delete(`/admin-users/${id}`);
+      loadAdmins();
+    } catch (e: any) {
+      setAdminError(e.message || 'Não é possível remover.');
+    }
+  };
 
   useEffect(() => {
     getSiteConfig().then((config) => {
@@ -425,6 +487,139 @@ export default function AdminConfigPage() {
         {saving && (
           <p className="text-xs text-primary-500 animate-pulse">Salvando...</p>
         )}
+      </div>
+
+      {/* Admin Users */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+              <Shield className="w-4 h-4 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-800">Acessos Administrativos</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Gerencie logins e senhas do painel de controle.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => { setShowNewUser(true); setAdminError(''); }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-lg hover:bg-indigo-100 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Novo Admin
+          </button>
+        </div>
+
+        {adminError && (
+          <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{adminError}</p>
+        )}
+
+        {/* New user form */}
+        {showNewUser && (
+          <div className="p-4 rounded-xl bg-indigo-50/50 border border-indigo-100 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600">Novo Administrador</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input
+                type="text"
+                value={newUser.name}
+                onChange={(e) => setNewUser(p => ({ ...p, name: e.target.value }))}
+                placeholder="Nome"
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <input
+                type="text"
+                value={newUser.username}
+                onChange={(e) => setNewUser(p => ({ ...p, username: e.target.value }))}
+                placeholder="Usuário *"
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <input
+                type="text"
+                value={newUser.password}
+                onChange={(e) => setNewUser(p => ({ ...p, password: e.target.value }))}
+                placeholder="Senha *"
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={handleCreateUser} className="px-4 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors">
+                Criar
+              </button>
+              <button onClick={() => setShowNewUser(false)} className="px-4 py-1.5 text-slate-500 text-xs font-medium rounded-lg hover:bg-slate-100 transition-colors">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Users list */}
+        <div className="space-y-2">
+          {adminUsers.map((user) => (
+            <div key={user.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50/50 border border-slate-100">
+              {editingUser === user.id ? (
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
+                  <input
+                    type="text"
+                    defaultValue={user.name}
+                    onChange={(e) => setEditForm(p => ({ ...p, name: e.target.value }))}
+                    placeholder="Nome"
+                    className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    defaultValue={user.username}
+                    onChange={(e) => setEditForm(p => ({ ...p, username: e.target.value }))}
+                    placeholder="Usuário"
+                    className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    value={editForm.password}
+                    onChange={(e) => setEditForm(p => ({ ...p, password: e.target.value }))}
+                    placeholder="Nova senha (em branco = manter)"
+                    className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <div className="flex gap-1">
+                    <button onClick={() => handleUpdateUser(user.id)} className="p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => setEditingUser(null)} className="p-1.5 text-slate-400 hover:bg-slate-200 rounded-lg">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                      <Key className="w-3.5 h-3.5 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">{user.name || user.username}</p>
+                      <p className="text-xs text-slate-400">@{user.username}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => { setEditingUser(user.id); setEditForm({ username: user.username, password: '', name: user.name }); setAdminError(''); }}
+                      className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-indigo-600 transition-colors"
+                      title="Editar"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteUser(user.id)}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                      title="Remover"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Save Button - Bottom */}

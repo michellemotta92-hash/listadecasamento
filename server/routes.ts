@@ -216,11 +216,66 @@ api.patch('/site-config', async (req: Request, res: Response) => {
 
 api.post('/auth/login', async (req: Request, res: Response) => {
   const { email, password } = req.body;
-  // Simple auth - in production, use proper hashing
-  if (email === 'admin' && password === 'admin123') {
-    return res.json({ ok: true, token: 'parasempre-admin-token' });
+  const user = await queryOne<{ id: string; username: string; name: string }>(
+    'SELECT id, username, name FROM admin_users WHERE username = $1 AND password = $2',
+    [email, password]
+  );
+  if (user) {
+    return res.json({ ok: true, token: 'parasempre-admin-token', user });
   }
   res.status(401).json({ error: 'Invalid credentials' });
+});
+
+// ─── Admin Users ───────────────────────────────────────
+
+api.get('/admin-users', async (_req: Request, res: Response) => {
+  const users = await query(
+    'SELECT id, username, name, created_at FROM admin_users ORDER BY created_at ASC'
+  );
+  res.json(users);
+});
+
+api.post('/admin-users', async (req: Request, res: Response) => {
+  const { username, password, name } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+  try {
+    const user = await queryOne(
+      'INSERT INTO admin_users (username, password, name) VALUES ($1, $2, $3) RETURNING id, username, name, created_at',
+      [username, password, name || username]
+    );
+    res.json(user);
+  } catch (e: any) {
+    if (e.code === '23505') return res.status(400).json({ error: 'Username already exists' });
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+api.patch('/admin-users/:id', async (req: Request, res: Response) => {
+  const { username, password, name } = req.body;
+  const sets: string[] = [];
+  const values: any[] = [];
+  let i = 1;
+  if (username) { sets.push(`username = $${i++}`); values.push(username); }
+  if (password) { sets.push(`password = $${i++}`); values.push(password); }
+  if (name !== undefined) { sets.push(`name = $${i++}`); values.push(name); }
+  if (sets.length === 0) return res.status(400).json({ error: 'No fields to update' });
+  values.push(req.params.id);
+  try {
+    await query(`UPDATE admin_users SET ${sets.join(', ')} WHERE id = $${i}`, values);
+    res.json({ ok: true });
+  } catch (e: any) {
+    if (e.code === '23505') return res.status(400).json({ error: 'Username already exists' });
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+api.delete('/admin-users/:id', async (req: Request, res: Response) => {
+  const count = await query('SELECT count(*) as cnt FROM admin_users');
+  if (parseInt((count as any)[0]?.cnt) <= 1) {
+    return res.status(400).json({ error: 'Cannot delete the last admin user' });
+  }
+  await query('DELETE FROM admin_users WHERE id = $1', [req.params.id]);
+  res.json({ ok: true });
 });
 
 // ─── Image Upload ───────────────────────────────────────
