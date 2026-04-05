@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { api } from './routes.js';
-import { query } from './db.js';
+import { pool } from './db.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001');
@@ -35,14 +35,14 @@ app.use((_req, res) => {
 // Expire overdue reservations every 60 seconds
 async function expireReservations() {
   try {
-    const { rowCount } = await query(
+    const result = await pool.query(
       "UPDATE gift_reservations SET status = 'expirada', updated_at = NOW() WHERE status = 'pendente' AND expires_at < NOW() RETURNING gift_item_id",
     );
-    if (rowCount && rowCount > 0) {
-      await query(
+    if (result.rowCount && result.rowCount > 0) {
+      await pool.query(
         "UPDATE gift_items SET status = 'disponivel', updated_at = NOW() WHERE status = 'reservado' AND id IN (SELECT gift_item_id FROM gift_reservations WHERE status = 'expirada')",
       );
-      console.log(`Expiradas ${rowCount} reservas, presentes liberados.`);
+      console.log(`Expiradas ${result.rowCount} reservas, presentes liberados.`);
     }
   } catch (e) {
     // Silently ignore DB errors (e.g. no connection yet)
