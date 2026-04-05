@@ -3,6 +3,13 @@ import { query, queryOne } from './db.js';
 
 export const api = Router();
 
+// ─── Auto-migrate sort_order column ─────────────────────
+(async () => {
+  try {
+    await query("ALTER TABLE gift_items ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0");
+  } catch { /* column may already exist */ }
+})();
+
 // ─── Helper ─────────────────────────────────────────────
 async function getTenantId(slug: string): Promise<string | null> {
   const t = await queryOne<{ id: string }>('SELECT id FROM tenants WHERE slug = $1', [slug]);
