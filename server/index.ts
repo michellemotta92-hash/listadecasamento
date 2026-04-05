@@ -20,7 +20,27 @@ app.use((_req, res, next) => {
 // API routes
 app.use('/api', api);
 
-// Serve uploaded images
+// Serve images from database (persistent storage)
+app.get('/db-images/:filename', async (req, res) => {
+  try {
+    const urlPath = `/db-images/${req.params.filename}`;
+    const result = await pool.query(
+      'SELECT data, mime_type FROM uploaded_images WHERE path = $1',
+      [urlPath]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).send('Image not found');
+    }
+    const { data, mime_type } = result.rows[0];
+    res.set('Content-Type', mime_type);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.send(data);
+  } catch {
+    res.status(500).send('Error loading image');
+  }
+});
+
+// Serve legacy uploaded images (filesystem fallback)
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
 // Serve static frontend (production)

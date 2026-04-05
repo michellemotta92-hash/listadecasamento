@@ -278,26 +278,16 @@ api.delete('/admin-users/:id', async (req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
-// ─── Image Upload ───────────────────────────────────────
+// ─── Image Upload (stored in database) ─────────────────
 
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { pool } from './db.js';
 
-const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-fs.mkdirSync(uploadsDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const name = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
-    cb(null, name);
-  },
-});
-
+const memStorage = multer.memoryStorage();
 const upload = multer({
-  storage,
+  storage: memStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
@@ -305,36 +295,61 @@ const upload = multer({
   },
 });
 
-api.post('/upload', upload.single('image'), (req: Request, res: Response) => {
+// Save image buffer to database, return URL path
+async function saveImageToDb(buffer: Buffer, mimeType: string, suggestedName?: string): Promise<string> {
+  const ext = mimeType.includes('png') ? '.png' : mimeType.includes('webp') ? '.webp' : '.jpg';
+  const filename = suggestedName || `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`;
+  const urlPath = `/db-images/${filename}`;
+
+  await pool.query(
+    `INSERT INTO uploaded_images (path, mime_type, data) VALUES ($1, $2, $3)
+     ON CONFLICT (path) DO UPDATE SET data = $3, mime_type = $2`,
+    [urlPath, mimeType, buffer]
+  );
+  return urlPath;
+}
+
+// Upload endpoint - stores in DB
+api.post('/upload', upload.single('image'), async (req: Request, res: Response) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
-  const url = `/uploads/${req.file.filename}`;
-  res.json({ url });
+  try {
+    const url = await saveImageToDb(req.file.buffer, req.file.mimetype);
+    res.json({ url });
+  } catch (e: any) {
+    res.status(500).json({ error: 'Upload failed' });
+  }
 });
 
 // ─── Regenerate Image ──────────────────────────────────
+
+function fetchUrl(url: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const mod = url.startsWith('https') ? require('https') : require('http');
+    mod.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      timeout: 10000,
+    }, (r: any) => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) {
+        return fetchUrl(r.headers.location).then(resolve).catch(reject);
+      }
+      if (r.statusCode !== 200) return reject(new Error(`HTTP ${r.statusCode}`));
+      const chunks: Buffer[] = [];
+      r.on('data', (c: Buffer) => chunks.push(c));
+      r.on('end', () => resolve(Buffer.concat(chunks)));
+      r.on('error', reject);
+    }).on('error', reject);
+  });
+}
 
 api.post('/gifts/:id/regenerate-image', async (req: Request, res: Response) => {
   const gift = await queryOne<{ id: string; name: string }>('SELECT id, name FROM gift_items WHERE id = $1', [req.params.id]);
   if (!gift) return res.status(404).json({ error: 'Gift not found' });
 
   try {
-    const https = await import('https');
     const searchQuery = encodeURIComponent(`${gift.name} produto`);
     const bingUrl = `https://www.bing.com/images/search?q=${searchQuery}&first=1&count=5&qft=+filterui:photo-photo`;
 
-    const html: string = await new Promise((resolve, reject) => {
-      https.default.get(bingUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept-Language': 'pt-BR,pt;q=0.9',
-        },
-      }, (r) => {
-        const chunks: Buffer[] = [];
-        r.on('data', (c: Buffer) => chunks.push(c));
-        r.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
-        r.on('error', reject);
-      }).on('error', reject);
-    });
+    const html = (await fetchUrl(bingUrl)).toString('utf-8');
 
     const urls: string[] = [];
     const re = /murl&quot;:&quot;(https?:\/\/[^&]+?)&quot;/g;
@@ -346,34 +361,13 @@ api.post('/gifts/:id/regenerate-image', async (req: Request, res: Response) => {
 
     if (urls.length === 0) return res.status(404).json({ error: 'No images found' });
 
-    // Try to download first valid image
     for (const imgUrl of urls.slice(0, 3)) {
       try {
-        const buffer: Buffer = await new Promise((resolve, reject) => {
-          const mod = imgUrl.startsWith('https') ? https.default : (require('http') as typeof import('http'));
-          mod.get(imgUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0 Chrome/124.0.0.0' },
-            timeout: 10000,
-          }, (r) => {
-            if (r.statusCode !== 200) return reject(new Error('Not 200'));
-            const chunks: Buffer[] = [];
-            r.on('data', (c: Buffer) => chunks.push(c));
-            r.on('end', () => resolve(Buffer.concat(chunks)));
-            r.on('error', reject);
-          }).on('error', reject);
-        });
-
+        const buffer = await fetchUrl(imgUrl);
         if (buffer.length < 5000) continue;
 
-        // Save to uploads
-        const filename = `regen-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-        const savePath = path.join(uploadsDir, filename);
-        fs.writeFileSync(savePath, buffer);
-        const newUrl = `/uploads/${filename}`;
-
-        // Update database
+        const newUrl = await saveImageToDb(buffer, 'image/jpeg');
         await query('UPDATE gift_items SET image_url = $1, updated_at = NOW() WHERE id = $2', [newUrl, gift.id]);
-
         return res.json({ ok: true, image_url: newUrl });
       } catch {
         continue;
