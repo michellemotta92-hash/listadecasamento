@@ -310,3 +310,78 @@ api.post('/upload', upload.single('image'), (req: Request, res: Response) => {
   const url = `/uploads/${req.file.filename}`;
   res.json({ url });
 });
+
+// ─── Regenerate Image ──────────────────────────────────
+
+api.post('/gifts/:id/regenerate-image', async (req: Request, res: Response) => {
+  const gift = await queryOne<{ id: string; name: string }>('SELECT id, name FROM gift_items WHERE id = $1', [req.params.id]);
+  if (!gift) return res.status(404).json({ error: 'Gift not found' });
+
+  try {
+    const https = await import('https');
+    const searchQuery = encodeURIComponent(`${gift.name} produto`);
+    const bingUrl = `https://www.bing.com/images/search?q=${searchQuery}&first=1&count=5&qft=+filterui:photo-photo`;
+
+    const html: string = await new Promise((resolve, reject) => {
+      https.default.get(bingUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept-Language': 'pt-BR,pt;q=0.9',
+        },
+      }, (r) => {
+        const chunks: Buffer[] = [];
+        r.on('data', (c: Buffer) => chunks.push(c));
+        r.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+        r.on('error', reject);
+      }).on('error', reject);
+    });
+
+    const urls: string[] = [];
+    const re = /murl&quot;:&quot;(https?:\/\/[^&]+?)&quot;/g;
+    let m;
+    while ((m = re.exec(html)) !== null) {
+      const imgUrl = m[1].replace(/&amp;/g, '&');
+      if (imgUrl.match(/\.(jpg|jpeg|png|webp)/i)) urls.push(imgUrl);
+    }
+
+    if (urls.length === 0) return res.status(404).json({ error: 'No images found' });
+
+    // Try to download first valid image
+    for (const imgUrl of urls.slice(0, 3)) {
+      try {
+        const buffer: Buffer = await new Promise((resolve, reject) => {
+          const mod = imgUrl.startsWith('https') ? https.default : (require('http') as typeof import('http'));
+          mod.get(imgUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 Chrome/124.0.0.0' },
+            timeout: 10000,
+          }, (r) => {
+            if (r.statusCode !== 200) return reject(new Error('Not 200'));
+            const chunks: Buffer[] = [];
+            r.on('data', (c: Buffer) => chunks.push(c));
+            r.on('end', () => resolve(Buffer.concat(chunks)));
+            r.on('error', reject);
+          }).on('error', reject);
+        });
+
+        if (buffer.length < 5000) continue;
+
+        // Save to uploads
+        const filename = `regen-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+        const savePath = path.join(uploadsDir, filename);
+        fs.writeFileSync(savePath, buffer);
+        const newUrl = `/uploads/${filename}`;
+
+        // Update database
+        await query('UPDATE gift_items SET image_url = $1, updated_at = NOW() WHERE id = $2', [newUrl, gift.id]);
+
+        return res.json({ ok: true, image_url: newUrl });
+      } catch {
+        continue;
+      }
+    }
+
+    res.status(404).json({ error: 'Could not download any image' });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message || 'Failed to regenerate image' });
+  }
+});

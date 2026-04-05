@@ -54,6 +54,7 @@ export interface SiteConfig {
   event_location?: string;
   hidden_pages?: PublicPage[];
   page_texts?: PageTexts;
+  theme?: string;
 }
 
 export interface GuestMessage {

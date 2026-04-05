@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Settings, Info, Image as ImageIcon, Save, Check, Eye, EyeOff, Type, Shield, Plus, Trash2, Pencil, X, Key } from 'lucide-react';
+import { Settings, Info, Image as ImageIcon, Save, Check, Eye, EyeOff, Type, Shield, Plus, Trash2, Pencil, X, Key, Palette } from 'lucide-react';
 import { appConfig } from '@/lib/config';
 import ImageUploader from '@/components/admin/ImageUploader';
 import { getSiteConfig, updateSiteConfig } from '@/lib/services/site-config';
 import { uploadImage } from '@/lib/services/images';
 import { api } from '@/lib/api';
 import { SiteConfig, PublicPage, PageTexts } from '@/types';
+import { themes } from '@/lib/themes';
 
 interface AdminUser {
   id: string;
@@ -27,6 +28,7 @@ export default function AdminConfigPage() {
   const [eventLocation, setEventLocation] = useState('');
   const [hiddenPages, setHiddenPages] = useState<PublicPage[]>([]);
   const [pageTexts, setPageTexts] = useState<PageTexts>({});
+  const [selectedTheme, setSelectedTheme] = useState('default');
 
   // Admin users
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -91,6 +93,7 @@ export default function AdminConfigPage() {
       setEventLocation(config.event_location || 'Fazenda Paraíso, São Paulo, SP');
       setHiddenPages(config.hidden_pages || []);
       setPageTexts(config.page_texts || {});
+      setSelectedTheme(config.theme || 'default');
     });
   }, []);
 
@@ -109,6 +112,7 @@ export default function AdminConfigPage() {
         event_location: eventLocation,
         hidden_pages: hiddenPages,
         page_texts: pageTexts,
+        theme: selectedTheme,
       };
       await updateSiteConfig(updates);
       setSiteConfig(prev => ({ ...prev, ...updates }));
@@ -215,6 +219,60 @@ export default function AdminConfigPage() {
             </div>
           </div>
 
+        </div>
+      </div>
+
+      {/* Theme Selector */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
+            <Palette className="w-4 h-4 text-pink-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Tema do Site</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Escolha a paleta de cores do site público.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {themes.map((theme) => {
+            const isSelected = selectedTheme === theme.id;
+            return (
+              <button
+                key={theme.id}
+                onClick={() => setSelectedTheme(theme.id)}
+                className={`relative p-3 rounded-xl border-2 text-left transition-all ${
+                  isSelected
+                    ? 'border-primary-500 ring-2 ring-primary-200 shadow-md'
+                    : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                }`}
+              >
+                {/* Color preview */}
+                <div className="flex gap-1 mb-2">
+                  <div className="w-6 h-6 rounded-full border border-slate-200" style={{ backgroundColor: theme.preview.bg }} />
+                  <div className="w-6 h-6 rounded-full border border-slate-200" style={{ backgroundColor: theme.preview.primary }} />
+                  <div className="w-6 h-6 rounded-full border border-slate-200" style={{ backgroundColor: theme.preview.accent }} />
+                  <div className="w-6 h-6 rounded-full border border-slate-200" style={{ backgroundColor: theme.preview.text }} />
+                </div>
+                {/* Mini preview card */}
+                <div
+                  className="rounded-lg p-2 mb-2 border"
+                  style={{ backgroundColor: theme.preview.bg, borderColor: theme.preview.accent }}
+                >
+                  <div className="h-1 w-8 rounded mb-1" style={{ backgroundColor: theme.preview.primary, opacity: 0.3 }} />
+                  <div className="h-2 w-16 rounded mb-1" style={{ backgroundColor: theme.preview.primary }} />
+                  <div className="h-1 w-12 rounded" style={{ backgroundColor: theme.preview.text, opacity: 0.2 }} />
+                </div>
+                <p className="text-xs font-semibold text-slate-800 leading-tight">{theme.name}</p>
+                <p className="text-[10px] text-slate-400 leading-tight mt-0.5">{theme.description}</p>
+                {isSelected && (
+                  <div className="absolute top-2 right-2">
+                    <Check className="w-4 h-4 text-primary-600" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 

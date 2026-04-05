@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { Heart } from 'lucide-react';
 import { getSiteConfig } from '@/lib/services/site-config';
 import { SiteConfig, PublicPage } from '@/types';
+import { applyTheme } from '@/lib/themes';
 
 const navLinks: { label: string; path: string; key: PublicPage | null }[] = [
   { label: 'Home', path: '', key: null },
@@ -22,7 +23,14 @@ export default function PublicLayout() {
     getSiteConfig().then(c => {
       setConfig(c);
       setLoaded(true);
+      applyTheme(c.theme || 'default');
     });
+    return () => {
+      // Reset theme when leaving public layout
+      document.documentElement.removeAttribute('style');
+      document.body.style.backgroundColor = '';
+      document.body.style.color = '';
+    };
   }, []);
 
   const hiddenPages = config.hidden_pages || [];

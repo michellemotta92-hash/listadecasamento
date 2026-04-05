@@ -6,16 +6,18 @@ import GiftEditModal from '@/components/admin/GiftEditModal';
 import { formatCurrency } from '@/lib/utils';
 import { updateGift } from '@/lib/services/gifts';
 import { motion, AnimatePresence } from 'motion/react';
-import { Package, Loader2, ExternalLink, Eye, Star, Pencil, Copy } from 'lucide-react';
+import { Package, Loader2, ExternalLink, Eye, Star, Pencil, Copy, RefreshCw } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 import { GiftItem } from '@/types';
 import { addGift } from '@/lib/services/gifts';
+import { api } from '@/lib/api';
 
 export default function AdminGiftsPage() {
   const { gifts, loading, refresh } = useGifts();
   const { domain } = useParams();
   const [editingGift, setEditingGift] = useState<GiftItem | null>(null);
   const [duplicating, setDuplicating] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState<string | null>(null);
 
   const totalGifts = gifts.length;
   const boughtGifts = gifts.filter(g => g.status === 'comprado').length;
@@ -25,6 +27,18 @@ export default function AdminGiftsPage() {
   const handleToggleFeatured = async (gift: GiftItem) => {
     await updateGift(gift.id, { is_featured: !gift.is_featured });
     refresh();
+  };
+
+  const handleRegenerateImage = async (gift: GiftItem) => {
+    setRegenerating(gift.id);
+    try {
+      await api.post(`/gifts/${gift.id}/regenerate-image`, {});
+      refresh();
+    } catch {
+      alert('Não foi possível regenerar a imagem. Tente novamente.');
+    } finally {
+      setRegenerating(null);
+    }
   };
 
   const handleDuplicate = async (gift: GiftItem) => {
@@ -165,6 +179,18 @@ export default function AdminGiftsPage() {
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleRegenerateImage(gift)}
+                        disabled={regenerating === gift.id}
+                        className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+                        title="Regenerar imagem"
+                      >
+                        {regenerating === gift.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-4 h-4" />
                         )}
                       </button>
                       {gift.store_link && (
