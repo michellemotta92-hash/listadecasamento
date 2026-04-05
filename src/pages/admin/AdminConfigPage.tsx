@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Settings, Info, Image as ImageIcon, Save, Check, Eye, EyeOff, Type, Shield, Plus, Trash2, Pencil, X, Key, Palette } from 'lucide-react';
+import { Settings, Info, Image as ImageIcon, Save, Check, Eye, EyeOff, Type, Shield, Plus, Trash2, Pencil, X, Key, Palette, ExternalLink } from 'lucide-react';
 import { appConfig } from '@/lib/config';
 import ImageUploader from '@/components/admin/ImageUploader';
 import { getSiteConfig, updateSiteConfig } from '@/lib/services/site-config';
 import { uploadImage } from '@/lib/services/images';
 import { api } from '@/lib/api';
 import { SiteConfig, PublicPage, PageTexts } from '@/types';
-import { themes } from '@/lib/themes';
+import { themes, applyTheme, getThemeById } from '@/lib/themes';
+import { useParams } from 'react-router';
 
 interface AdminUser {
   id: string;
@@ -17,6 +18,7 @@ interface AdminUser {
 }
 
 export default function AdminConfigPage() {
+  const { domain } = useParams();
   const [siteConfig, setSiteConfig] = useState<SiteConfig>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -29,6 +31,8 @@ export default function AdminConfigPage() {
   const [hiddenPages, setHiddenPages] = useState<PublicPage[]>([]);
   const [pageTexts, setPageTexts] = useState<PageTexts>({});
   const [selectedTheme, setSelectedTheme] = useState('default');
+  const [confirmedTheme, setConfirmedTheme] = useState('default');
+  const [themeApplying, setThemeApplying] = useState(false);
 
   // Admin users
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -94,6 +98,7 @@ export default function AdminConfigPage() {
       setHiddenPages(config.hidden_pages || []);
       setPageTexts(config.page_texts || {});
       setSelectedTheme(config.theme || 'default');
+      setConfirmedTheme(config.theme || 'default');
     });
   }, []);
 
@@ -230,18 +235,19 @@ export default function AdminConfigPage() {
           </div>
           <div>
             <h3 className="text-sm font-semibold text-slate-800">Tema do Site</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Escolha a paleta de cores do site público.</p>
+            <p className="text-xs text-slate-400 mt-0.5">Escolha a paleta de cores do site público. Clique em "Visualizar" para pré-visualizar ou "Alterar" para aplicar.</p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {themes.map((theme) => {
             const isSelected = selectedTheme === theme.id;
+            const isConfirmed = confirmedTheme === theme.id;
             return (
-              <button
+              <div
                 key={theme.id}
                 onClick={() => setSelectedTheme(theme.id)}
-                className={`relative p-3 rounded-xl border-2 text-left transition-all ${
+                className={`relative p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
                   isSelected
                     ? 'border-primary-500 ring-2 ring-primary-200 shadow-md'
                     : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
@@ -265,12 +271,59 @@ export default function AdminConfigPage() {
                 </div>
                 <p className="text-xs font-semibold text-slate-800 leading-tight">{theme.name}</p>
                 <p className="text-[10px] text-slate-400 leading-tight mt-0.5">{theme.description}</p>
-                {isSelected && (
+                {isConfirmed && (
                   <div className="absolute top-2 right-2">
-                    <Check className="w-4 h-4 text-primary-600" />
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-green-100 text-green-700">
+                      <Check className="w-3 h-3" /> Ativo
+                    </span>
                   </div>
                 )}
-              </button>
+                {/* Action buttons */}
+                {isSelected && (
+                  <div className="flex gap-1.5 mt-2">
+                    <a
+                      href={`/${domain}?preview_theme=${theme.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                    >
+                      <Eye className="w-3 h-3" />
+                      Visualizar
+                    </a>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (isConfirmed) return;
+                        setThemeApplying(true);
+                        try {
+                          await updateSiteConfig({ theme: theme.id });
+                          setSiteConfig(prev => ({ ...prev, theme: theme.id }));
+                          setConfirmedTheme(theme.id);
+                          applyTheme(theme.id);
+                        } finally {
+                          setThemeApplying(false);
+                        }
+                      }}
+                      disabled={isConfirmed || themeApplying}
+                      className={`flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg transition-colors ${
+                        isConfirmed
+                          ? 'bg-green-50 text-green-600 cursor-default'
+                          : 'bg-primary-600 text-white hover:bg-primary-700'
+                      }`}
+                    >
+                      {themeApplying ? (
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : isConfirmed ? (
+                        <Check className="w-3 h-3" />
+                      ) : (
+                        <Palette className="w-3 h-3" />
+                      )}
+                      {isConfirmed ? 'Ativo' : 'Alterar'}
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

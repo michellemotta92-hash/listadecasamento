@@ -23,7 +23,10 @@ export default function PublicLayout() {
     getSiteConfig().then(c => {
       setConfig(c);
       setLoaded(true);
-      applyTheme(c.theme || 'default');
+      // Check for preview_theme query parameter
+      const params = new URLSearchParams(window.location.search);
+      const previewTheme = params.get('preview_theme');
+      applyTheme(previewTheme || c.theme || 'default');
     });
     return () => {
       // Reset theme when leaving public layout

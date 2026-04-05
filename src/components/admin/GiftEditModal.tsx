@@ -1,47 +1,64 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Save, Loader2, Trash2 } from 'lucide-react';
+import { X, Save, Loader2, Trash2, Plus } from 'lucide-react';
 import { GiftItem, RoomType, GiftStatus } from '@/types';
-import { updateGift } from '@/lib/services/gifts';
+import { updateGift, addGift } from '@/lib/services/gifts';
 import { uploadImage } from '@/lib/services/images';
 import ImageUploader from './ImageUploader';
 
 interface Props {
-  gift: GiftItem;
+  gift: GiftItem | null;
   onClose: () => void;
   onSaved: () => void;
 }
 
 export default function GiftEditModal({ gift, onClose, onSaved }: Props) {
+  const isNew = !gift;
   const [form, setForm] = useState({
-    name: gift.name,
-    description: gift.description || '',
-    price: gift.price,
-    room: gift.room as RoomType,
-    color: gift.color || '',
-    store_name: gift.store_name || '',
-    store_link: gift.store_link || '',
-    status: gift.status as GiftStatus,
-    is_featured: gift.is_featured,
-    image_url: gift.image_url,
+    name: gift?.name || '',
+    description: gift?.description || '',
+    price: gift?.price || 0,
+    room: (gift?.room || 'outro') as RoomType,
+    color: gift?.color || '',
+    store_name: gift?.store_name || '',
+    store_link: gift?.store_link || '',
+    status: (gift?.status || 'disponivel') as GiftStatus,
+    is_featured: gift?.is_featured || false,
+    image_url: gift?.image_url || null,
   });
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateGift(gift.id, {
-        name: form.name,
-        description: form.description || null,
-        price: form.price,
-        room: form.room,
-        color: form.color || null,
-        store_name: form.store_name || null,
-        store_link: form.store_link || null,
-        status: form.status,
-        is_featured: form.is_featured,
-        image_url: form.image_url,
-      });
+      if (isNew) {
+        await addGift({
+          tenant_id: '',
+          name: form.name,
+          description: form.description || null,
+          price: form.price,
+          room: form.room,
+          color: form.color || null,
+          store_name: form.store_name || null,
+          store_link: form.store_link || null,
+          status: form.status,
+          is_featured: form.is_featured,
+          image_url: form.image_url,
+        });
+      } else {
+        await updateGift(gift.id, {
+          name: form.name,
+          description: form.description || null,
+          price: form.price,
+          room: form.room,
+          color: form.color || null,
+          store_name: form.store_name || null,
+          store_link: form.store_link || null,
+          status: form.status,
+          is_featured: form.is_featured,
+          image_url: form.image_url,
+        });
+      }
       onSaved();
       onClose();
     } finally {
@@ -50,7 +67,7 @@ export default function GiftEditModal({ gift, onClose, onSaved }: Props) {
   };
 
   const handleImageUpload = async (file: File) => {
-    const path = `products/${gift.id}.${file.name.split('.').pop()}`;
+    const path = `products/${isNew ? Date.now() : gift.id}.${file.name.split('.').pop()}`;
     const url = await uploadImage(file, path);
     setForm(f => ({ ...f, image_url: url }));
   };
@@ -92,7 +109,7 @@ export default function GiftEditModal({ gift, onClose, onSaved }: Props) {
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
-          <h3 className="text-lg font-semibold text-slate-900">Editar Presente</h3>
+          <h3 className="text-lg font-semibold text-slate-900">{isNew ? 'Novo Presente' : 'Editar Presente'}</h3>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400">
             <X className="w-5 h-5" />
           </button>
@@ -235,8 +252,8 @@ export default function GiftEditModal({ gift, onClose, onSaved }: Props) {
             disabled={saving || !form.name.trim()}
             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-xl transition-colors disabled:opacity-50 shadow-sm"
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Salvar alterações
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : isNew ? <Plus className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+            {isNew ? 'Criar Presente' : 'Salvar alterações'}
           </button>
         </div>
       </motion.div>

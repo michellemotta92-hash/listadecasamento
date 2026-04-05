@@ -68,6 +68,9 @@ CREATE TABLE IF NOT EXISTS rsvp_entries (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Sort order for gift items
+ALTER TABLE gift_items ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_gift_items_tenant ON gift_items(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_gift_items_status ON gift_items(status);

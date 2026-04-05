@@ -24,7 +24,7 @@ api.get('/gifts', async (req: Request, res: Response) => {
   );
 
   const gifts = await query(
-    'SELECT * FROM gift_items WHERE tenant_id = $1 ORDER BY created_at ASC',
+    'SELECT * FROM gift_items WHERE tenant_id = $1 ORDER BY sort_order ASC, created_at ASC',
     [tenantId]
   );
   res.json(gifts);
@@ -38,7 +38,7 @@ api.get('/gifts/:id', async (req: Request, res: Response) => {
 
 api.patch('/gifts/:id', async (req: Request, res: Response) => {
   const updates = req.body;
-  const allowed = ['name', 'description', 'price', 'room', 'color', 'store_name', 'store_link', 'status', 'is_featured', 'image_url'];
+  const allowed = ['name', 'description', 'price', 'room', 'color', 'store_name', 'store_link', 'status', 'is_featured', 'image_url', 'sort_order'];
   const sets: string[] = [];
   const values: any[] = [];
   let i = 1;
@@ -68,12 +68,30 @@ api.post('/gifts', async (req: Request, res: Response) => {
   if (!tenantId) return res.status(500).json({ error: 'No tenant' });
 
   const g = req.body;
+  // Get max sort_order for new items
+  const maxOrder = await queryOne<{ max: number }>('SELECT COALESCE(MAX(sort_order), 0) as max FROM gift_items WHERE tenant_id = $1', [tenantId]);
+  const nextOrder = (maxOrder?.max || 0) + 1;
   const gift = await queryOne(
-    `INSERT INTO gift_items (tenant_id, name, description, price, room, color, store_name, store_link, status, is_featured, image_url)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-    [tenantId, g.name, g.description, g.price, g.room, g.color, g.store_name, g.store_link, g.status || 'disponivel', g.is_featured || false, g.image_url]
+    `INSERT INTO gift_items (tenant_id, name, description, price, room, color, store_name, store_link, status, is_featured, image_url, sort_order)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+    [tenantId, g.name, g.description, g.price, g.room, g.color, g.store_name, g.store_link, g.status || 'disponivel', g.is_featured || false, g.image_url, nextOrder]
   );
   res.json(gift);
+});
+
+api.post('/gifts/reorder', async (req: Request, res: Response) => {
+  const { orderedIds } = req.body as { orderedIds: string[] };
+  if (!Array.isArray(orderedIds)) return res.status(400).json({ error: 'orderedIds required' });
+
+  for (let i = 0; i < orderedIds.length; i++) {
+    await query('UPDATE gift_items SET sort_order = $1, updated_at = NOW() WHERE id = $2', [i, orderedIds[i]]);
+  }
+  res.json({ ok: true });
+});
+
+api.delete('/gifts/:id', async (req: Request, res: Response) => {
+  await query('DELETE FROM gift_items WHERE id = $1', [req.params.id]);
+  res.json({ ok: true });
 });
 
 // ─── Reservations ───────────────────────────────────────

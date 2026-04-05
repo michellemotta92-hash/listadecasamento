@@ -43,3 +43,13 @@ export async function addGift(gift: Omit<GiftItem, 'id' | 'created_at' | 'update
   }
   return api.post<GiftItem>('/gifts', gift);
 }
+
+export async function deleteGift(id: string): Promise<void> {
+  if (appConfig.isDemoMode) return;
+  await api.delete(`/gifts/${id}`);
+}
+
+export async function reorderGifts(orderedIds: string[]): Promise<void> {
+  if (appConfig.isDemoMode) return;
+  await api.post('/gifts/reorder', { orderedIds });
+}
