@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const WEDDING_DATE = new Date('2026-10-12T16:00:00-03:00');
+const DEFAULT_DATE = '2026-10-12';
+const DEFAULT_TIME = '16:00';
 
 interface TimeLeft {
   days: number;
@@ -10,8 +11,8 @@ interface TimeLeft {
   seconds: number;
 }
 
-function getTimeLeft(): TimeLeft {
-  const diff = Math.max(0, WEDDING_DATE.getTime() - Date.now());
+function getTimeLeft(weddingDate: Date): TimeLeft {
+  const diff = Math.max(0, weddingDate.getTime() - Date.now());
   return {
     days: Math.floor(diff / (1000 * 60 * 60 * 24)),
     hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
@@ -44,13 +45,22 @@ function CountdownUnit({ value, label }: { value: number; label: string }) {
   );
 }
 
-export default function WeddingCountdown() {
-  const [timeLeft, setTimeLeft] = useState(getTimeLeft);
+interface WeddingCountdownProps {
+  eventDate?: string;
+  eventTime?: string;
+}
+
+export default function WeddingCountdown({ eventDate, eventTime }: WeddingCountdownProps) {
+  const dateStr = eventDate || DEFAULT_DATE;
+  const timeStr = eventTime || DEFAULT_TIME;
+  const weddingDate = new Date(`${dateStr}T${timeStr}:00-03:00`);
+
+  const [timeLeft, setTimeLeft] = useState(() => getTimeLeft(weddingDate));
 
   useEffect(() => {
-    const timer = setInterval(() => setTimeLeft(getTimeLeft()), 1000);
+    const timer = setInterval(() => setTimeLeft(getTimeLeft(weddingDate)), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [dateStr, timeStr]);
 
   const isOver = timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0;
 
