@@ -14,6 +14,15 @@ async function getTenantId(slug: string): Promise<string | null> {
 api.get('/gifts', async (req: Request, res: Response) => {
   const tenantId = await getTenantId('miejohn');
   if (!tenantId) return res.json([]);
+
+  // Expire overdue reservations before returning gifts
+  await query(
+    "UPDATE gift_reservations SET status = 'expirada', updated_at = NOW() WHERE status = 'pendente' AND expires_at < NOW()"
+  );
+  await query(
+    "UPDATE gift_items SET status = 'disponivel', updated_at = NOW() WHERE status = 'reservado' AND id IN (SELECT gift_item_id FROM gift_reservations WHERE status = 'expirada')"
+  );
+
   const gifts = await query(
     'SELECT * FROM gift_items WHERE tenant_id = $1 ORDER BY created_at ASC',
     [tenantId]
