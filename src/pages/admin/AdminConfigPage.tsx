@@ -146,33 +146,6 @@ export default function AdminConfigPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              onClick={handleSaveEventInfo}
-              disabled={saving}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
-            >
-              {saving ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Salvando...
-                </>
-              ) : saved ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  Salvo!
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Salvar Alterações
-                </>
-              )}
-            </button>
-            {saved && (
-              <span className="text-xs text-green-600 animate-pulse">Configurações salvas com sucesso!</span>
-            )}
-          </div>
         </div>
       </div>
 
@@ -242,7 +215,7 @@ export default function AdminConfigPage() {
         </div>
 
         <p className="text-xs text-slate-400">
-          Clique em "Salvar Alterações" acima para aplicar as mudanças de visibilidade.
+          Clique em "Salvar Alterações" abaixo para aplicar as mudanças de visibilidade.
         </p>
       </div>
 
@@ -284,6 +257,40 @@ export default function AdminConfigPage() {
         {saving && (
           <p className="text-xs text-primary-500 animate-pulse">Salvando...</p>
         )}
+      </div>
+
+      {/* Save Button - Bottom */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-500">Salve todas as alterações de configuração do evento e visibilidade.</p>
+          <div className="flex items-center gap-3">
+            {saved && (
+              <span className="text-xs text-green-600 animate-pulse">Configurações salvas com sucesso!</span>
+            )}
+            <button
+              onClick={handleSaveEventInfo}
+              disabled={saving}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+            >
+              {saving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Salvando...
+                </>
+              ) : saved ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Salvo!
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Salvar Alterações
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

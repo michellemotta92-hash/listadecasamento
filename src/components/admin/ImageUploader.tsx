@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react';
-import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Loader2, Pencil } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
+import ImageEditor from './ImageEditor';
 
 interface ImageUploaderProps {
   currentUrl: string | null;
@@ -22,9 +24,12 @@ export default function ImageUploader({
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editSource, setEditSource] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const aspectClass = aspectRatio === 'wide' ? 'aspect-[21/9]' : 'aspect-square';
+  const aspectNumeric = aspectRatio === 'wide' ? 21 / 9 : 1;
   const displayUrl = preview || currentUrl;
 
   const validateAndUpload = async (file: File) => {
@@ -55,6 +60,20 @@ export default function ImageUploader({
     }
   };
 
+  const handleEdit = () => {
+    const url = preview || currentUrl;
+    if (url) {
+      setEditSource(url);
+      setEditing(true);
+    }
+  };
+
+  const handleEditSave = async (file: File) => {
+    setEditing(false);
+    setEditSource(null);
+    await validateAndUpload(file);
+  };
+
   const handleRemove = () => {
     if (preview) {
       URL.revokeObjectURL(preview);
@@ -83,6 +102,14 @@ export default function ImageUploader({
             )}
           </div>
           <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={handleEdit}
+              className="p-1.5 rounded-lg bg-white/90 shadow-sm hover:bg-white text-slate-600 hover:text-primary-600 transition-colors"
+              title="Editar imagem"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -140,6 +167,18 @@ export default function ImageUploader({
       {error && (
         <p className="text-xs text-red-500">{error}</p>
       )}
+
+      {/* Image Editor Modal */}
+      <AnimatePresence>
+        {editing && editSource && (
+          <ImageEditor
+            imageUrl={editSource}
+            aspectRatio={aspectNumeric}
+            onSave={handleEditSave}
+            onCancel={() => { setEditing(false); setEditSource(null); }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
