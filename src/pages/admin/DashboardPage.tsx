@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { useGifts } from '@/hooks/useGifts';
 import { formatCurrency, parseCurrencyValue } from '@/lib/utils';
 import { motion } from 'motion/react';
-import { ShoppingBag, DollarSign, Clock, TrendingUp, Loader2 } from 'lucide-react';
+import { ShoppingBag, DollarSign, Clock, TrendingUp, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function DashboardPage() {
   const { gifts, loading } = useGifts();
+  const [showAllBought, setShowAllBought] = useState(false);
 
   if (loading) {
     return (
@@ -19,6 +21,7 @@ export default function DashboardPage() {
   const reservedGifts = gifts.filter(g => g.status === 'reservado');
   const totalValue = boughtGifts.reduce((sum, g) => sum + parseCurrencyValue(g.price), 0);
   const progressPercent = totalGifts > 0 ? Math.round((boughtGifts.length / totalGifts) * 100) : 0;
+  const visibleBoughtGifts = showAllBought ? boughtGifts : boughtGifts.slice(0, 5);
 
   const stats = [
     {
@@ -88,9 +91,30 @@ export default function DashboardPage() {
 
       {/* Recent purchases */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-slate-400" />
-          <h3 className="font-semibold text-slate-900">Últimos Presentes Comprados</h3>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-slate-400" />
+            <h3 className="font-semibold text-slate-900">Presentes Comprados</h3>
+          </div>
+          {boughtGifts.length > 5 && (
+            <button
+              type="button"
+              onClick={() => setShowAllBought(current => !current)}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors"
+            >
+              {showAllBought ? (
+                <>
+                  Ver menos
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </>
+              ) : (
+                <>
+                  Ver todos ({boughtGifts.length})
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </>
+              )}
+            </button>
+          )}
         </div>
         <div className="divide-y divide-slate-50">
           {boughtGifts.length === 0 ? (
@@ -98,7 +122,7 @@ export default function DashboardPage() {
               Nenhum presente comprado ainda.
             </div>
           ) : (
-            boughtGifts.slice(0, 5).map((gift) => (
+            visibleBoughtGifts.map((gift) => (
               <div key={gift.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-100 shrink-0">
