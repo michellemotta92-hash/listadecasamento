@@ -82,6 +82,7 @@ export interface GiftReservation {
   id: string;
   gift_item_id: string;
   tenant_id: string;
+  gift_name?: string | null;
   guest_name: string | null;
   guest_email: string | null;
   status: ReservationStatus;

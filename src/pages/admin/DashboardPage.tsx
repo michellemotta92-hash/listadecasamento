@@ -1,17 +1,29 @@
 import { useState } from 'react';
+import { Link, useParams } from 'react-router';
+import { motion } from 'motion/react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  DollarSign,
+  Loader2,
+  Package,
+  TrendingUp,
+  WalletCards,
+} from 'lucide-react';
+import MetricCard from '@/components/admin/MetricCard';
 import { useGifts } from '@/hooks/useGifts';
 import { formatCurrency, parseCurrencyValue } from '@/lib/utils';
-import { motion } from 'motion/react';
-import { ShoppingBag, DollarSign, Clock, TrendingUp, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function DashboardPage() {
   const { gifts, loading } = useGifts();
+  const { domain } = useParams();
   const [showAllBought, setShowAllBought] = useState(false);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary-400" />
       </div>
     );
   }
@@ -19,98 +31,87 @@ export default function DashboardPage() {
   const totalGifts = gifts.length;
   const boughtGifts = gifts.filter(g => g.status === 'comprado');
   const reservedGifts = gifts.filter(g => g.status === 'reservado');
-  const totalValue = boughtGifts.reduce((sum, g) => sum + parseCurrencyValue(g.price), 0);
+  const availableGifts = gifts.filter(g => g.status === 'disponivel');
+  const listValue = gifts.reduce((sum, g) => sum + parseCurrencyValue(g.price), 0);
+  const boughtValue = boughtGifts.reduce((sum, g) => sum + parseCurrencyValue(g.price), 0);
+  const reservedValue = reservedGifts.reduce((sum, g) => sum + parseCurrencyValue(g.price), 0);
+  const pendingValue = availableGifts.reduce((sum, g) => sum + parseCurrencyValue(g.price), 0);
   const progressPercent = totalGifts > 0 ? Math.round((boughtGifts.length / totalGifts) * 100) : 0;
   const visibleBoughtGifts = showAllBought ? boughtGifts : boughtGifts.slice(0, 5);
-
-  const stats = [
-    {
-      label: 'Presentes Comprados',
-      value: `${boughtGifts.length}`,
-      sub: `de ${totalGifts}`,
-      icon: ShoppingBag,
-      color: 'text-sage-600 bg-sage-50',
-      progress: progressPercent,
-    },
-    {
-      label: 'Valor Arrecadado',
-      value: formatCurrency(totalValue),
-      sub: 'baseado em itens comprados',
-      icon: DollarSign,
-      color: 'text-primary-600 bg-primary-50',
-    },
-    {
-      label: 'Reservas Pendentes',
-      value: `${reservedGifts.length}`,
-      sub: 'aguardando confirmação',
-      icon: Clock,
-      color: 'text-gold-600 bg-gold-50',
-    },
-  ];
+  const giftsPath = `/${domain}/admin/presentes`;
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Visão Geral</h1>
-        <p className="text-slate-500 text-sm mt-1">Acompanhe o status do seu site e lista de presentes.</p>
+        <p className="mt-1 text-sm text-slate-500">Acompanhe o status do seu site e lista de presentes.</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stats.map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-slate-500">{stat.label}</h3>
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${stat.color}`}>
-                <stat.icon className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-slate-900">{stat.value}</span>
-              {stat.sub && <span className="text-xs text-slate-400">{stat.sub}</span>}
-            </div>
-            {stat.progress !== undefined && (
-              <div className="mt-4 h-2 bg-slate-100 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${stat.progress}%` }}
-                  transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
-                  className="h-full bg-sage-500 rounded-full"
-                />
-              </div>
-            )}
-          </motion.div>
-        ))}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Valor Arrecadado"
+          value={formatCurrency(boughtValue)}
+          sub={`${boughtGifts.length} comprados`}
+          icon={DollarSign}
+          color="bg-sage-50 text-sage-600"
+          progress={progressPercent}
+        />
+        <MetricCard
+          label="Valor Reservado"
+          value={formatCurrency(reservedValue)}
+          sub={`${reservedGifts.length} aguardando confirmação`}
+          icon={Clock}
+          color="bg-gold-50 text-gold-600"
+        />
+        <MetricCard
+          label="Valor Pendente"
+          value={formatCurrency(pendingValue)}
+          sub={`${availableGifts.length} disponíveis`}
+          icon={WalletCards}
+          color="bg-primary-50 text-primary-600"
+        />
+        <MetricCard
+          label="Valor Total da Lista"
+          value={formatCurrency(listValue)}
+          sub={`${totalGifts} presentes cadastrados`}
+          icon={Package}
+          color="bg-slate-100 text-slate-600"
+        />
       </div>
 
-      {/* Recent purchases */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <Link to={`${giftsPath}?status=comprado`} className="rounded-xl border border-sage-100 bg-sage-50 px-4 py-3 text-sm font-medium text-sage-700 transition hover:bg-sage-100">
+          Ver comprados
+        </Link>
+        <Link to={`${giftsPath}?status=reservado`} className="rounded-xl border border-gold-100 bg-gold-50 px-4 py-3 text-sm font-medium text-gold-700 transition hover:bg-gold-100">
+          Ver reservados
+        </Link>
+        <Link to={`${giftsPath}?status=disponivel`} className="rounded-xl border border-primary-100 bg-primary-50 px-4 py-3 text-sm font-medium text-primary-700 transition hover:bg-primary-100">
+          Ver disponíveis
+        </Link>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-6 py-4">
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-slate-400" />
+            <TrendingUp className="h-4 w-4 text-slate-400" />
             <h3 className="font-semibold text-slate-900">Presentes Comprados</h3>
           </div>
           {boughtGifts.length > 5 && (
             <button
               type="button"
               onClick={() => setShowAllBought(current => !current)}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600 transition hover:text-primary-700"
             >
               {showAllBought ? (
                 <>
                   Ver menos
-                  <ChevronUp className="w-3.5 h-3.5" />
+                  <ChevronUp className="h-3.5 w-3.5" />
                 </>
               ) : (
                 <>
                   Ver todos ({boughtGifts.length})
-                  <ChevronDown className="w-3.5 h-3.5" />
+                  <ChevronDown className="h-3.5 w-3.5" />
                 </>
               )}
             </button>
@@ -118,25 +119,30 @@ export default function DashboardPage() {
         </div>
         <div className="divide-y divide-slate-50">
           {boughtGifts.length === 0 ? (
-            <div className="px-6 py-12 text-center text-slate-400 text-sm">
+            <div className="px-6 py-12 text-center text-sm text-slate-400">
               Nenhum presente comprado ainda.
             </div>
           ) : (
             visibleBoughtGifts.map((gift) => (
-              <div key={gift.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-100 shrink-0">
-                    <img src={gift.image_url || ''} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <motion.div
+                key={gift.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center justify-between gap-4 px-6 py-4 transition hover:bg-slate-50/50"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                    <img src={gift.image_url || ''} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{gift.name}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900">{gift.name}</p>
                     <p className="text-xs text-slate-400">{formatCurrency(gift.price)}</p>
                   </div>
                 </div>
-                <span className="text-[10px] bg-sage-50 text-sage-700 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">
+                <span className="rounded-full bg-sage-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-sage-700">
                   Comprado
                 </span>
-              </div>
+              </motion.div>
             ))
           )}
         </div>

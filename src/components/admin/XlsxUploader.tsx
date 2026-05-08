@@ -1,11 +1,11 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
+import { CheckCircle2, FileSpreadsheet, Loader2, XCircle } from 'lucide-react';
 import { addGift } from '@/lib/services/gifts';
-import { parseBRLPrice, guessRoom } from '@/lib/utils';
-import { Upload, FileSpreadsheet, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { guessRoom, parseBRLPrice } from '@/lib/utils';
 
 interface Props {
-  onImportComplete?: () => void;
+  onImportComplete: () => void;
 }
 
 export default function XlsxUploader({ onImportComplete }: Props) {
@@ -30,7 +30,6 @@ export default function XlsxUploader({ onImportComplete }: Props) {
       const sheet = workbook.Sheets[sheetName];
       const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-      // Find header row
       let headerIdx = -1;
       for (let i = 0; i < Math.min(rows.length, 10); i++) {
         const row = rows[i];
@@ -78,7 +77,7 @@ export default function XlsxUploader({ onImportComplete }: Props) {
 
       setResult({ success: true, count: importedCount, message: `${importedCount} presentes importados com sucesso!` });
       onImportComplete?.();
-    } catch (err) {
+    } catch {
       setResult({ success: false, count: 0, message: 'Erro ao processar a planilha.' });
     } finally {
       setIsUploading(false);
@@ -88,10 +87,8 @@ export default function XlsxUploader({ onImportComplete }: Props) {
   return (
     <div className="space-y-4">
       <div
-        className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
-          isDragging
-            ? 'border-primary-400 bg-primary-50'
-            : 'border-slate-200 hover:border-primary-300 bg-slate-50/50'
+        className={`cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-all ${
+          isDragging ? 'border-primary-400 bg-primary-50' : 'border-slate-200 bg-slate-50/50 hover:border-primary-300'
         }`}
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
@@ -101,7 +98,7 @@ export default function XlsxUploader({ onImportComplete }: Props) {
           const file = e.dataTransfer.files[0];
           if (file) handleFile(file);
         }}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => fileInputRef.current.click()}
       >
         <input
           ref={fileInputRef}
@@ -116,19 +113,19 @@ export default function XlsxUploader({ onImportComplete }: Props) {
         <div className="space-y-3">
           {isUploading ? (
             <>
-              <Loader2 className="w-8 h-8 text-primary-500 mx-auto animate-spin" />
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary-500" />
               <p className="text-sm text-slate-500">Importando presentes...</p>
             </>
           ) : (
             <>
-              <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center mx-auto">
-                <FileSpreadsheet className="w-6 h-6 text-primary-500" />
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50">
+                <FileSpreadsheet className="h-6 w-6 text-primary-500" />
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-700">
                   Arraste sua planilha .xlsx aqui ou clique para selecionar
                 </p>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="mt-1 text-xs text-slate-400">
                   Formato: Item | Preço | Link | Descrição | Cor/Variação
                 </p>
               </div>
@@ -138,12 +135,10 @@ export default function XlsxUploader({ onImportComplete }: Props) {
       </div>
 
       {result && (
-        <div className={`flex items-center gap-3 p-4 rounded-xl text-sm ${
-          result.success
-            ? 'bg-sage-50 border border-sage-100 text-sage-700'
-            : 'bg-red-50 border border-red-200 text-red-800'
+        <div className={`flex items-center gap-3 rounded-xl p-4 text-sm ${
+          result.success ? 'border border-sage-100 bg-sage-50 text-sage-700' : 'border border-red-200 bg-red-50 text-red-800'
         }`}>
-          {result.success ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <XCircle className="w-5 h-5 shrink-0" />}
+          {result.success ? <CheckCircle2 className="h-5 w-5 shrink-0" /> : <XCircle className="h-5 w-5 shrink-0" />}
           {result.message}
         </div>
       )}
