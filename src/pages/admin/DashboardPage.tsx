@@ -1,5 +1,5 @@
 import { useGifts } from '@/hooks/useGifts';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, parseCurrencyValue } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { ShoppingBag, DollarSign, Clock, TrendingUp, Loader2 } from 'lucide-react';
 
@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const totalGifts = gifts.length;
   const boughtGifts = gifts.filter(g => g.status === 'comprado');
   const reservedGifts = gifts.filter(g => g.status === 'reservado');
-  const totalValue = boughtGifts.reduce((sum, g) => sum + g.price, 0);
+  const totalValue = boughtGifts.reduce((sum, g) => sum + parseCurrencyValue(g.price), 0);
   const progressPercent = totalGifts > 0 ? Math.round((boughtGifts.length / totalGifts) * 100) : 0;
 
   const stats = [

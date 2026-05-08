@@ -1,21 +1,32 @@
 import { GiftItem, GiftStatus } from '@/types';
 import { appConfig } from '@/lib/config';
+import { parseCurrencyValue } from '@/lib/utils';
 import { demoStore } from './demo-store';
 import { api } from '@/lib/api';
 
+function normalizeGift(gift: GiftItem): GiftItem {
+  return {
+    ...gift,
+    price: parseCurrencyValue(gift.price),
+  };
+}
+
 export async function getGifts(): Promise<GiftItem[]> {
   if (appConfig.isDemoMode) {
-    return demoStore.getGifts();
+    return demoStore.getGifts().map(normalizeGift);
   }
-  return api.get<GiftItem[]>('/gifts');
+  const gifts = await api.get<GiftItem[]>('/gifts');
+  return gifts.map(normalizeGift);
 }
 
 export async function getGiftById(id: string): Promise<GiftItem | null> {
   if (appConfig.isDemoMode) {
-    return demoStore.getGiftById(id) || null;
+    const gift = demoStore.getGiftById(id);
+    return gift ? normalizeGift(gift) : null;
   }
   try {
-    return await api.get<GiftItem>(`/gifts/${id}`);
+    const gift = await api.get<GiftItem>(`/gifts/${id}`);
+    return normalizeGift(gift);
   } catch {
     return null;
   }

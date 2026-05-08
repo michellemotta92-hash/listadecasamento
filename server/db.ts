@@ -1,9 +1,31 @@
 import pg from 'pg';
+import fs from 'fs';
+import path from 'path';
 
 const { Pool } = pg;
 
-const DATABASE_URL = process.env.DATABASE_URL
-  || 'postgresql://postgres:zlWdDNNYCQzDvqbNlfzhLwkSJZjtRYdG@junction.proxy.rlwy.net:55979/railway';
+const envPath = path.join(process.cwd(), '.env');
+
+if (fs.existsSync(envPath)) {
+  const envFile = fs.readFileSync(envPath, 'utf-8');
+  for (const line of envFile.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+
+    const separatorIndex = trimmed.indexOf('=');
+    if (separatorIndex === -1) continue;
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed.slice(separatorIndex + 1).trim();
+    process.env[key] ||= value;
+  }
+}
+
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL) {
+  throw new Error('DATABASE_URL is required. Set it in the environment or in a local .env file.');
+}
 
 export const pool = new Pool({
   connectionString: DATABASE_URL,

@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { useGifts } from '@/hooks/useGifts';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, parseCurrencyValue } from '@/lib/utils';
 import { Gift, TrendingUp } from 'lucide-react';
 
 export default function RegistryProgress() {
@@ -14,7 +14,7 @@ export default function RegistryProgress() {
   const percentage = Math.round(((bought + reserved) / total) * 100);
   const totalValue = gifts
     .filter(g => g.status === 'comprado')
-    .reduce((sum, g) => sum + g.price, 0);
+    .reduce((sum, g) => sum + parseCurrencyValue(g.price), 0);
 
   return (
     <motion.div

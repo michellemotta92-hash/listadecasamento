@@ -6,22 +6,45 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(value: number): string {
+export function parseCurrencyValue(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value !== 'string') return 0;
+
+  const cleaned = value
+    .replace(/R\$\s*/gi, '')
+    .replace(/\s/g, '')
+    .trim();
+
+  if (!cleaned) return 0;
+
+  const hasComma = cleaned.includes(',');
+  const hasDot = cleaned.includes('.');
+  let normalized = cleaned;
+
+  if (hasComma) {
+    normalized = cleaned.replace(/\./g, '').replace(',', '.');
+  } else if (hasDot) {
+    const parts = cleaned.split('.');
+    const lastPart = parts[parts.length - 1];
+    normalized = parts.length > 2 || lastPart.length !== 2
+      ? cleaned.replace(/\./g, '')
+      : cleaned;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function formatCurrency(value: unknown): string {
+  const numericValue = parseCurrencyValue(value);
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-  }).format(value);
+  }).format(numericValue);
 }
 
 export function parseBRLPrice(priceStr: string): number {
-  if (!priceStr) return 0;
-  const cleaned = priceStr
-    .replace(/R\$\s*/gi, '')
-    .replace(/\./g, '')
-    .replace(',', '.')
-    .trim();
-  const value = parseFloat(cleaned);
-  return isNaN(value) ? 0 : value;
+  return parseCurrencyValue(priceStr);
 }
 
 export function guessRoom(name: string, description: string): RoomType {
