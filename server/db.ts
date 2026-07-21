@@ -27,10 +27,17 @@ if (!DATABASE_URL) {
   throw new Error('DATABASE_URL is required. Set it in the environment or in a local .env file.');
 }
 
+const poolMax = Number.parseInt(process.env.DATABASE_POOL_MAX || '10', 10);
+const useSsl = process.env.DATABASE_SSL === 'true';
+const ssl = useSsl
+  ? { rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false' }
+  : false;
+
 export const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: false,
-  max: 20,
+  ssl,
+  min: 0,
+  max: Number.isFinite(poolMax) && poolMax > 0 ? poolMax : 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
 });

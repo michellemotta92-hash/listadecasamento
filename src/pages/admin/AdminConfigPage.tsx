@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Settings, Info, Image as ImageIcon, Save, Check, Eye, EyeOff, Type, Shield, Plus, Trash2, Pencil, X, Key, Palette, ExternalLink } from 'lucide-react';
+import { Settings, Info, Image as ImageIcon, Save, Check, Eye, EyeOff, Type, Shield, Plus, Trash2, Pencil, X, Key, Palette, ExternalLink, Wallet } from 'lucide-react';
+import { PixConfig, PixKeyType } from '@/types';
 import { appConfig } from '@/lib/config';
 import ImageUploader from '@/components/admin/ImageUploader';
 import { getSiteConfig, updateSiteConfig } from '@/lib/services/site-config';
@@ -41,9 +42,19 @@ export default function AdminConfigPage() {
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ username: '', password: '', name: '' });
   const [adminError, setAdminError] = useState('');
+  const [pixEnabled, setPixEnabled] = useState(false);
+  const [pixTitle, setPixTitle] = useState('Lua de mel');
+  const [pixDescription, setPixDescription] = useState('');
+  const [pixKeyType, setPixKeyType] = useState<PixKeyType>('email');
+  const [pixKey, setPixKey] = useState('');
+  const [pixBeneficiary, setPixBeneficiary] = useState('');
+  const [pixQrUrl, setPixQrUrl] = useState('');
+  const [metaDescription, setMetaDescription] = useState('');
 
   const loadAdmins = () => {
-    api.get<AdminUser[]>('/admin-users').then(setAdminUsers).catch(() => {});
+    // Team access now uses organization memberships. The legacy password-per-event
+    // UI stays disabled until the invitation flow is connected.
+    setAdminUsers([]);
   };
 
   useEffect(() => {
@@ -99,6 +110,15 @@ export default function AdminConfigPage() {
       setPageTexts(config.page_texts || {});
       setSelectedTheme(config.theme || 'default');
       setConfirmedTheme(config.theme || 'default');
+      const pix = config.pix;
+      setPixEnabled(pix?.enabled ?? false);
+      setPixTitle(pix?.title || 'Lua de mel');
+      setPixDescription(pix?.description || '');
+      setPixKeyType(pix?.key_type || 'email');
+      setPixKey(pix?.key || '');
+      setPixBeneficiary(pix?.beneficiary_name || '');
+      setPixQrUrl(pix?.qr_image_url || '');
+      setMetaDescription(config.meta_description || '');
     });
   }, []);
 
@@ -118,6 +138,16 @@ export default function AdminConfigPage() {
         hidden_pages: hiddenPages,
         page_texts: pageTexts,
         theme: selectedTheme,
+        meta_description: metaDescription,
+        pix: {
+          enabled: pixEnabled,
+          title: pixTitle,
+          description: pixDescription,
+          key_type: pixKeyType,
+          key: pixKey.trim(),
+          beneficiary_name: pixBeneficiary,
+          qr_image_url: pixQrUrl || undefined,
+        },
       };
       await updateSiteConfig(updates);
       setSiteConfig(prev => ({ ...prev, ...updates }));
@@ -346,6 +376,7 @@ export default function AdminConfigPage() {
             { key: 'presentes' as PublicPage, label: 'Lista de Presentes', desc: 'Página com todos os presentes sugeridos' },
             { key: 'recados' as PublicPage, label: 'Recados', desc: 'Mural de recados dos convidados' },
             { key: 'confirmar' as PublicPage, label: 'RSVP / Confirmação de Presença', desc: 'Formulário de confirmação dos convidados' },
+            { key: 'pix' as PublicPage, label: 'Pix / Lua de mel', desc: 'Página com chave Pix e QR code' },
           ]).map((page) => {
             const isHidden = hiddenPages.includes(page.key);
             return (
@@ -397,6 +428,110 @@ export default function AdminConfigPage() {
         <p className="text-xs text-slate-400">
           Clique em "Salvar Alterações" abaixo para aplicar as mudanças de visibilidade.
         </p>
+      </div>
+
+      {/* Pix */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+            <Wallet className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Pix / Lua de mel</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Chave Pix e QR para contribuições em dinheiro</p>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={pixEnabled}
+            onChange={(e) => setPixEnabled(e.target.checked)}
+            className="rounded border-slate-300"
+          />
+          Exibir Pix no site
+        </label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">Título</label>
+            <input
+              type="text"
+              value={pixTitle}
+              onChange={(e) => setPixTitle(e.target.value)}
+              className="block w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">Tipo de chave</label>
+            <select
+              value={pixKeyType}
+              onChange={(e) => setPixKeyType(e.target.value as PixKeyType)}
+              className="block w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm"
+            >
+              <option value="email">E-mail</option>
+              <option value="phone">Telefone</option>
+              <option value="cpf">CPF</option>
+              <option value="random">Aleatória</option>
+            </select>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">Chave Pix</label>
+            <input
+              type="text"
+              value={pixKey}
+              onChange={(e) => setPixKey(e.target.value)}
+              className="block w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm font-mono"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">Nome do beneficiário</label>
+            <input
+              type="text"
+              value={pixBeneficiary}
+              onChange={(e) => setPixBeneficiary(e.target.value)}
+              className="block w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">Descrição</label>
+            <textarea
+              value={pixDescription}
+              onChange={(e) => setPixDescription(e.target.value)}
+              rows={2}
+              className="block w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1.5">QR Code (imagem)</label>
+          {pixQrUrl && (
+            <img src={pixQrUrl} alt="QR Pix" className="w-32 h-32 object-contain border rounded-lg mb-2" />
+          )}
+          <ImageUploader
+            currentUrl={pixQrUrl || null}
+            label="QR Code Pix"
+            onUpload={async (file) => {
+              const url = await uploadImage(file, 'site/pix-qr.png');
+              setPixQrUrl(url);
+            }}
+            onRemove={() => setPixQrUrl('')}
+          />
+        </div>
+      </div>
+
+      {/* SEO */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <h3 className="text-sm font-semibold text-slate-800">SEO</h3>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1.5">Descrição do site (meta)</label>
+          <textarea
+            value={metaDescription}
+            onChange={(e) => setMetaDescription(e.target.value)}
+            rows={2}
+            maxLength={300}
+            className="block w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm"
+            placeholder="Site do casamento de Mi & John — lista de presentes e confirmação de presença"
+          />
+        </div>
       </div>
 
       {/* Page Texts */}
@@ -601,7 +736,7 @@ export default function AdminConfigPage() {
       </div>
 
       {/* Admin Users */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+      <div className="hidden bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">

@@ -1,18 +1,31 @@
 import { useParams, Link } from 'react-router';
 import { useGift } from '@/hooks/useGifts';
+import { GiftDetailSkeleton } from '@/components/ui/Skeleton';
 import GiftReservationFlow from '@/components/public/GiftReservationFlow';
 import { motion } from 'motion/react';
-import { ArrowLeft, Loader2, Palette } from 'lucide-react';
+import { ArrowLeft, Loader2, Palette, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 export default function GiftDetailPage() {
   const { domain, id } = useParams();
-  const { gift, loading, refresh } = useGift(id!);
+  const { data: gift, isLoading, error, refetch } = useGift(id!);
 
-  if (loading) {
+  if (isLoading) {
+    return <GiftDetailSkeleton />;
+  }
+
+  if (error) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
+      <div className="flex flex-col items-center gap-4 py-32 text-center">
+        <AlertCircle className="w-8 h-8 text-red-400" />
+        <h2 className="font-heading text-2xl text-[#4a3f38] mb-2">Erro ao carregar presente</h2>
+        <p className="text-[#8a7e76] mb-6">Tente recarregar a página.</p>
+        <button
+          onClick={() => refetch()}
+          className="text-primary-600 hover:text-primary-700 font-medium"
+        >
+          Tentar novamente
+        </button>
       </div>
     );
   }
@@ -94,7 +107,7 @@ export default function GiftDetailPage() {
           </div>
 
           <div className="pt-6 border-t border-[#e0d0c8]/50 mt-auto">
-            <GiftReservationFlow gift={gift} onStatusChange={refresh} />
+            <GiftReservationFlow gift={gift} onStatusChange={refetch} />
           </div>
         </div>
       </motion.div>

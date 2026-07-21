@@ -7,7 +7,7 @@ export async function getMessages(): Promise<GuestMessage[]> {
   if (appConfig.isDemoMode) {
     return demoStore.getMessages();
   }
-  return api.get<GuestMessage[]>('/messages');
+  return api.get<GuestMessage[]>('/admin/messages');
 }
 
 export async function getApprovedMessages(): Promise<GuestMessage[]> {

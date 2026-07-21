@@ -1,7 +1,16 @@
+/**
+ * Creates admin_users table. Requires DATABASE_URL in environment.
+ * Usage: DATABASE_URL=postgresql://... node scripts/create-admin-table.cjs
+ */
 const { Client } = require('pg');
-const c = new Client({
-  connectionString: 'postgresql://postgres:zlWdDNNYCQzDvqbNlfzhLwkSJZjtRYdG@junction.proxy.rlwy.net:55979/railway'
-});
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('DATABASE_URL is required');
+  process.exit(1);
+}
+
+const c = new Client({ connectionString });
 
 async function main() {
   await c.connect();
@@ -15,15 +24,11 @@ async function main() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
-  console.log('Table created');
+  console.log('Table admin_users ready');
 
-  const check = await c.query('SELECT count(*) as cnt FROM admin_users');
+  const check = await c.query('SELECT count(*)::text as cnt FROM admin_users');
   if (parseInt(check.rows[0].cnt) === 0) {
-    await c.query(
-      'INSERT INTO admin_users (username, password, name) VALUES ($1, $2, $3)',
-      ['admin', 'admin123', 'Administrador']
-    );
-    console.log('Default admin created');
+    console.log('No admin users found. Create one via the admin panel or hash script.');
   }
 
   const { rows } = await c.query('SELECT id, username, name FROM admin_users');
@@ -32,4 +37,7 @@ async function main() {
   await c.end();
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

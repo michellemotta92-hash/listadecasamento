@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { isAuthenticated, signIn as authSignIn, signOut as authSignOut } from '@/lib/services/auth';
+import { createContext, useContext, ReactNode } from 'react';
+import { usePlatformAuth } from '@/contexts/PlatformAuthContext';
 
 interface AuthContextType {
   isLoggedIn: boolean;
@@ -10,32 +10,23 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+/**
+ * Compatibility facade for the tenant admin UI. Authentication has one source
+ * of truth: the platform session. Tenant authorization is enforced by the API.
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    isAuthenticated().then((auth) => {
-      setIsLoggedIn(auth);
-      setLoading(false);
-    });
-  }, []);
-
-  const signIn = async (email: string, password: string) => {
-    const result = await authSignIn(email, password);
-    if (result.success) {
-      setIsLoggedIn(true);
-    }
-    return result;
-  };
-
-  const signOut = async () => {
-    await authSignOut();
-    setIsLoggedIn(false);
-  };
+  const platform = usePlatformAuth();
+  const signOut = async () => platform.signOut();
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, loading, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{
+        isLoggedIn: platform.isLoggedIn,
+        loading: platform.loading,
+        signIn: platform.signIn,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

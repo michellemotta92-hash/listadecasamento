@@ -163,7 +163,7 @@ async function updateDatabase(successMap: Map<string, string>) {
   try {
     const pg = await import('pg');
     const pool = new pg.default.Pool({
-      connectionString: process.env.DATABASE_URL || 'postgresql://postgres:zlWdDNNYCQzDvqbNlfzhLwkSJZjtRYdG@junction.proxy.rlwy.net:55979/railway',
+      connectionString: process.env.DATABASE_URL,
       ssl: false,
     });
     const { rows } = await pool.query('SELECT id FROM gift_items ORDER BY created_at ASC');

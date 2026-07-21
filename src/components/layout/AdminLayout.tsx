@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Outlet, Link, useParams, useLocation } from 'react-router';
-import { useAuth } from '@/contexts/AuthContext';
+import { Link, Outlet, useLocation, useParams } from 'react-router';
 import { motion } from 'motion/react';
-import { LayoutDashboard, Gift, CalendarClock, Settings, LogOut, ExternalLink, MessageSquare, Users } from 'lucide-react';
+import { CalendarClock, CheckSquare2, ExternalLink, Gift, LayoutDashboard, LogOut, MessageSquare, Settings, Users } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSiteConfig } from '@/hooks/useSiteConfig';
 import { cn } from '@/lib/utils';
-import { getSiteConfig } from '@/lib/services/site-config';
 import { PublicPage } from '@/types';
 
 const navItems: { label: string; path: string; icon: any; publicPage?: PublicPage }[] = [
   { label: 'Dashboard', path: '', icon: LayoutDashboard },
+  { label: 'Planejamento', path: '/planejamento', icon: CheckSquare2 },
   { label: 'Presentes', path: '/presentes', icon: Gift, publicPage: 'presentes' },
   { label: 'Reservas', path: '/reservas', icon: CalendarClock },
   { label: 'Recados', path: '/recados', icon: MessageSquare, publicPage: 'recados' },
@@ -20,13 +20,8 @@ export default function AdminLayout() {
   const { domain } = useParams();
   const { signOut } = useAuth();
   const location = useLocation();
-  const [hiddenPages, setHiddenPages] = useState<PublicPage[]>([]);
-
-  useEffect(() => {
-    getSiteConfig().then(config => {
-      setHiddenPages(config.hidden_pages || []);
-    });
-  }, []);
+  const { data: config } = useSiteConfig();
+  const hiddenPages = config?.hidden_pages || [];
 
   const handleLogout = async () => {
     await signOut();
@@ -36,22 +31,20 @@ export default function AdminLayout() {
   const basePath = `/${domain}/admin`;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col fixed inset-y-0 left-0 z-20">
-        <div className="h-16 flex items-center px-6 border-b border-slate-800">
-          <span className="text-white font-serif tracking-[0.15em] uppercase text-lg">ParaSempre</span>
+    <div className="flex min-h-screen bg-slate-50">
+      <aside className="fixed inset-y-0 left-0 z-20 flex w-64 flex-col bg-slate-900 text-slate-300">
+        <div className="flex h-16 items-center border-b border-slate-800 px-6">
+          <span className="font-serif text-lg uppercase tracking-[0.15em] text-white">ParaSempre</span>
         </div>
 
         <div className="flex-1 px-4 py-6">
-          <p className="px-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-4">
+          <p className="mb-4 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
             Painel de Controle
           </p>
           <nav className="space-y-1">
             {navItems.map((item) => {
               const fullPath = basePath + item.path;
-              const isActive = location.pathname === fullPath ||
-                (item.path !== '' && location.pathname.startsWith(fullPath));
+              const isActive = location.pathname === fullPath || (item.path !== '' && location.pathname.startsWith(fullPath));
               const isDraft = item.publicPage && hiddenPages.includes(item.publicPage);
 
               return (
@@ -59,23 +52,21 @@ export default function AdminLayout() {
                   key={item.path}
                   to={fullPath}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative',
-                    isActive
-                      ? 'bg-white/10 text-white'
-                      : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                    'relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+                    isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200',
                   )}
                 >
                   {isActive && (
                     <motion.div
                       layoutId="adminActiveNav"
-                      className="absolute inset-0 bg-white/10 rounded-lg"
+                      className="absolute inset-0 rounded-lg bg-white/10"
                       transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                     />
                   )}
-                  <item.icon className="w-4 h-4 relative z-10" />
+                  <item.icon className="relative z-10 h-4 w-4" />
                   <span className="relative z-10 flex-1">{item.label}</span>
                   {isDraft && (
-                    <span className="relative z-10 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    <span className="relative z-10 rounded border border-amber-500/30 bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-400">
                       Rascunho
                     </span>
                   )}
@@ -85,38 +76,26 @@ export default function AdminLayout() {
           </nav>
         </div>
 
-        <div className="p-4 border-t border-slate-800 space-y-2">
-          <Link
-            to={`/${domain}`}
-            target="_blank"
-            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" />
+        <div className="space-y-2 border-t border-slate-800 p-4">
+          <Link to={`/${domain}`} target="_blank" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400 transition hover:text-white">
+            <ExternalLink className="h-4 w-4" />
             Ver site ao vivo
           </Link>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors w-full"
-          >
-            <LogOut className="w-4 h-4" />
+          <button onClick={handleLogout} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-400 transition hover:text-white">
+            <LogOut className="h-4 w-4" />
             Sair
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 ml-64 min-h-screen">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center px-8 sticky top-0 z-10">
+      <main className="ml-64 min-h-screen flex-1">
+        <header className="sticky top-0 z-10 flex h-16 items-center border-b border-slate-200 bg-white px-8">
           <h2 className="text-sm font-medium text-slate-500">
-            Tenant: <span className="text-slate-800 font-semibold">{domain}</span>
+            Tenant: <span className="font-semibold text-slate-800">{domain}</span>
           </h2>
         </header>
         <div className="p-8">
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <Outlet />
           </motion.div>
         </div>

@@ -1,9 +1,9 @@
-import { Outlet, Navigate, useParams } from 'react-router';
+import { Outlet, Navigate, useLocation } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function AuthGuard() {
   const { isLoggedIn, loading } = useAuth();
-  const { domain } = useParams();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -14,7 +14,7 @@ export default function AuthGuard() {
   }
 
   if (!isLoggedIn) {
-    return <Navigate to={`/${domain}/admin/login`} replace />;
+    return <Navigate to="/app/login" replace state={{ from: location.pathname }} />;
   }
 
   return <Outlet />;

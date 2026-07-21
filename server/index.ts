@@ -2,25 +2,55 @@ import express from 'express';
 import path from 'path';
 import { api } from './routes.js';
 import { pool } from './db.js';
+import { expireOverdueReservations } from './reservations.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001');
+const CORS_ORIGIN = process.env.CORS_ORIGIN;
+const isDev = process.env.NODE_ENV !== 'production';
+const allowedOrigins = (CORS_ORIGIN || '').split(',').map((origin) => origin.trim()).filter(Boolean);
 
-app.use(express.json());
+if (!isDev && allowedOrigins.length === 0) {
+  throw new Error('CORS_ORIGIN is required in production');
+}
 
-// CORS for development
-app.use((_req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+app.set('trust proxy', Number.parseInt(process.env.TRUST_PROXY_HOPS || '1', 10));
+
+app.use(express.json({ limit: '100kb' }));
+
+app.use((req, res, next) => {
+  const requestOrigin = req.headers.origin;
+  if (requestOrigin && (isDev || allowedOrigins.includes(requestOrigin))) {
+    res.header('Access-Control-Allow-Origin', requestOrigin);
+    res.header('Vary', 'Origin');
+  }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (_req.method === 'OPTIONS') return res.sendStatus(200);
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Tenant-Slug');
+  res.header('X-Content-Type-Options', 'nosniff');
+  res.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.header('X-Frame-Options', 'SAMEORIGIN');
+  res.header(
+    'Content-Security-Policy',
+    "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'"
+  );
+  if (req.method === 'OPTIONS') {
+    if (requestOrigin && !isDev && !allowedOrigins.includes(requestOrigin)) return res.sendStatus(403);
+    return res.sendStatus(204);
+  }
   next();
 });
 
-// API routes
 app.use('/api', api);
 
-// Serve images from database (persistent storage)
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'Endpoint não encontrado' });
+});
+
+app.use('/api', (err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Unhandled API error:', err.message);
+  res.status(500).json({ error: 'Erro interno do servidor' });
+});
+
 app.get('/db-images/:filename', async (req, res) => {
   try {
     const urlPath = `/db-images/${req.params.filename}`;
@@ -40,37 +70,67 @@ app.get('/db-images/:filename', async (req, res) => {
   }
 });
 
-// Serve legacy uploaded images (filesystem fallback)
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
-// Serve static frontend (production)
 const distPath = path.join(process.cwd(), 'dist');
-app.use(express.static(distPath));
+app.use(express.static(distPath, {
+  maxAge: '1h',
+  setHeaders: (res, filePath) => {
+    if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  },
+}));
 
-// SPA fallback - serve index.html for all non-API routes
 app.use((_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-// Expire overdue reservations every 60 seconds
-async function expireReservations() {
+async function runExpireJob() {
   try {
-    const result = await pool.query(
-      "UPDATE gift_reservations SET status = 'expirada', updated_at = NOW() WHERE status = 'pendente' AND expires_at < NOW() RETURNING gift_item_id",
-    );
-    if (result.rowCount && result.rowCount > 0) {
-      await pool.query(
-        "UPDATE gift_items SET status = 'disponivel', updated_at = NOW() WHERE status = 'reservado' AND id IN (SELECT gift_item_id FROM gift_reservations WHERE status = 'expirada')",
-      );
-      console.log(`Expiradas ${result.rowCount} reservas, presentes liberados.`);
+    const { expired, released } = await expireOverdueReservations();
+    if (expired > 0) {
+      console.log(`Reservas expiradas: ${expired}, presentes liberados: ${released}`);
     }
   } catch (e) {
-    // Silently ignore DB errors (e.g. no connection yet)
+    console.error('Erro ao expirar reservas:', e);
   }
 }
-setInterval(expireReservations, 60_000);
 
-app.listen(PORT, '0.0.0.0', () => {
+const expireJobTimer = setInterval(runExpireJob, 60_000);
+
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://localhost:${PORT}`);
-  expireReservations(); // Run once on startup
+  runExpireJob();
 });
+
+let shuttingDown = false;
+
+async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  clearInterval(expireJobTimer);
+  console.log(`${signal} received. Shutting down gracefully...`);
+
+  const forceExitTimer = setTimeout(() => {
+    console.error('Graceful shutdown timed out.');
+    process.exit(1);
+  }, 10_000);
+  forceExitTimer.unref();
+
+  server.close(async (error) => {
+    if (error) console.error('HTTP server shutdown error:', error);
+    try {
+      await pool.end();
+    } catch (poolError) {
+      console.error('Database pool shutdown error:', poolError);
+    } finally {
+      clearTimeout(forceExitTimer);
+      process.exit(error ? 1 : 0);
+    }
+  });
+}
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));

@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Heart, Send, Loader2, CheckCircle2, Users, UtensilsCrossed, MessageCircle } from 'lucide-react';
 import { addRSVP } from '@/lib/services/rsvp';
-import { getSiteConfig } from '@/lib/services/site-config';
-import { PageTexts } from '@/types';
+import { useSiteConfig } from '@/hooks/useSiteConfig';
 
 export default function RSVPPage() {
-  const [texts, setTexts] = useState<PageTexts>({});
+  const { data: config } = useSiteConfig();
+  const texts = config?.page_texts || {};
   const [form, setForm] = useState({
     guest_name: '',
     guest_email: '',
@@ -17,10 +17,6 @@ export default function RSVPPage() {
   });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
-
-  useEffect(() => {
-    getSiteConfig().then(c => setTexts(c.page_texts || {}));
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

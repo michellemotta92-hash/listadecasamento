@@ -2,19 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { MessageSquare, Loader2 } from 'lucide-react';
 import { getApprovedMessages } from '@/lib/services/messages';
-import { GuestMessage, PageTexts } from '@/types';
+import { GuestMessage } from '@/types';
 import MessageCard from '@/components/public/MessageCard';
 import MessageForm from '@/components/public/MessageForm';
-import { getSiteConfig } from '@/lib/services/site-config';
+import { useSiteConfig } from '@/hooks/useSiteConfig';
 
 export default function MessagesPage() {
+  const { data: config } = useSiteConfig();
+  const texts = config?.page_texts || {};
   const [messages, setMessages] = useState<GuestMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [texts, setTexts] = useState<PageTexts>({});
-
-  useEffect(() => {
-    getSiteConfig().then(c => setTexts(c.page_texts || {}));
-  }, []);
 
   const loadMessages = useCallback(async () => {
     const data = await getApprovedMessages();

@@ -4,9 +4,9 @@ import { formatCurrency, parseCurrencyValue } from '@/lib/utils';
 import { Gift, TrendingUp } from 'lucide-react';
 
 export default function RegistryProgress() {
-  const { gifts, loading } = useGifts();
+  const { data: gifts = [], isLoading } = useGifts();
 
-  if (loading || gifts.length === 0) return null;
+  if (isLoading || gifts.length === 0) return null;
 
   const total = gifts.length;
   const bought = gifts.filter(g => g.status === 'comprado').length;

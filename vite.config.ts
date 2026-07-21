@@ -18,4 +18,15 @@ export default defineConfig({
       '/uploads': 'http://localhost:3001',
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router'],
+          'vendor-motion': ['motion/react'],
+          'vendor-query': ['@tanstack/react-query'],
+        },
+      },
+    },
+  },
 });
