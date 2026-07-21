@@ -1,22 +1,20 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useGifts } from '@/hooks/useGifts';
+import { useSiteConfig } from '@/hooks/useSiteConfig';
 import GiftFilters from '@/components/public/GiftFilters';
 import GiftCard from '@/components/public/GiftCard';
 import SurpriseGiftPicker from '@/components/public/SurpriseGiftPicker';
+import { GiftCardSkeleton } from '@/components/ui/Skeleton';
 import { motion } from 'motion/react';
-import { Gift, Loader2 } from 'lucide-react';
-import { getSiteConfig } from '@/lib/services/site-config';
-import { PageTexts } from '@/types';
+import { Gift, Loader2, Search, AlertCircle } from 'lucide-react';
 
 export default function GiftsPage() {
-  const { gifts, loading } = useGifts();
+  const { data: gifts = [], isLoading, error, refetch } = useGifts();
+  const { data: config } = useSiteConfig();
+  const texts = config?.page_texts || {};
   const [searchParams] = useSearchParams();
-  const [texts, setTexts] = useState<PageTexts>({});
-
-  useEffect(() => {
-    getSiteConfig().then(c => setTexts(c.page_texts || {}));
-  }, []);
+  const [search, setSearch] = useState('');
 
   const room = searchParams.get('room') || '';
   const sort = searchParams.get('sort') || '';
@@ -24,6 +22,10 @@ export default function GiftsPage() {
 
   const filteredGifts = useMemo(() => {
     let result = [...gifts];
+    const q = search.trim().toLowerCase();
+    if (q) {
+      result = result.filter((g) => g.name.toLowerCase().includes(q));
+    }
     if (room) {
       result = result.filter(g => g.room === room);
     }
@@ -36,7 +38,7 @@ export default function GiftsPage() {
       result.sort((a, b) => b.price - a.price);
     }
     return result;
-  }, [gifts, room, sort, featured]);
+  }, [gifts, room, sort, featured, search]);
 
   return (
     <div className="space-y-12">
@@ -55,25 +57,61 @@ export default function GiftsPage() {
         </p>
       </motion.div>
 
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-4 w-full max-w-md mx-auto">
+        <div className="relative w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#a89e95]" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar presente por nome..."
+            aria-label="Buscar presente"
+            className="w-full pl-11 pr-4 py-3 rounded-full border border-[#e0d0c8] bg-white/80 text-[#3d3530] text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+          />
+        </div>
         <GiftFilters />
-        {!loading && <SurpriseGiftPicker gifts={gifts} />}
+        {!isLoading && <SurpriseGiftPicker gifts={gifts} />}
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
-        </div>
-      ) : filteredGifts.length === 0 ? (
-        <div className="text-center py-16 text-[#a89e95]">
-          Nenhum presente encontrado para este filtro.
-        </div>
-      ) : (
+      {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-          {filteredGifts.map((gift, index) => (
-            <GiftCard key={gift.id} gift={gift} index={index} />
+          {Array.from({ length: 8 }).map((_, i) => (
+            <GiftCardSkeleton key={i} />
           ))}
         </div>
+      ) : error ? (
+        <div className="flex flex-col items-center gap-4 py-16 text-center">
+          <AlertCircle className="w-8 h-8 text-red-400" />
+          <p className="text-[#8a7e76]">Erro ao carregar presentes.</p>
+          <button
+            onClick={() => refetch()}
+            className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      ) : filteredGifts.length === 0 ? (
+        <div className="text-center py-16 space-y-2">
+          <Gift className="w-10 h-10 mx-auto text-[#d0c8c0]" />
+          <p className="text-[#8a7e76]">Nenhum presente encontrado.</p>
+          <button
+            onClick={() => setSearch('')}
+            className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+          >
+            Limpar filtros
+          </button>
+        </div>
+      ) : (
+        <>
+          <p className="text-center text-xs text-[#a89e95]">
+            {filteredGifts.length} presente{filteredGifts.length !== 1 ? 's' : ''} encontrado{filteredGifts.length !== 1 ? 's' : ''}
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            {filteredGifts.map((gift, index) => (
+              <GiftCard key={gift.id} gift={gift} index={index} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

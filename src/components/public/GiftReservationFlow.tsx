@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GiftItem } from '@/types';
 import { createReservation, confirmReservation } from '@/lib/services/reservations';
+import { useToast } from '@/contexts/ToastContext';
 import Modal from '@/components/ui/Modal';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingBag, Check, ExternalLink, Loader2 } from 'lucide-react';
@@ -10,61 +11,168 @@ interface Props {
   onStatusChange?: () => void;
 }
 
+interface StoredReservation {
+  reservationId: string;
+  token: string;
+  status: 'reserved' | 'confirmed';
+}
+
 export default function GiftReservationFlow({ gift, onStatusChange }: Props) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { showToast } = useToast();
+  const [isRedirectModalOpen, setIsRedirectModalOpen] = useState(false);
+  const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
   const [countdown, setCountdown] = useState(10);
-  const [reservationStatus, setReservationStatus] = useState<'idle' | 'reserving' | 'reserved' | 'confirming' | 'confirmed'>('idle');
+  const [canCloseRedirect, setCanCloseRedirect] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [reservationStatus, setReservationStatus] = useState<
+    'idle' | 'reserving' | 'reserved' | 'confirming' | 'confirmed'
+  >('idle');
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [reservationProof, setReservationProof] = useState<StoredReservation | null>(null);
 
   useEffect(() => {
+    const storageKey = `reservation_${gift.id}`;
+    const raw = localStorage.getItem(storageKey);
+    let saved: StoredReservation | null = null;
+    if (raw?.startsWith('{')) {
+      try {
+        saved = JSON.parse(raw) as StoredReservation;
+      } catch {
+        localStorage.removeItem(storageKey);
+      }
+    }
+
     if (gift.status === 'comprado') {
       setReservationStatus('confirmed');
-      localStorage.setItem(`reservation_${gift.id}`, 'confirmed');
-      return;
-    }
-    if (gift.status === 'reservado') {
-      const saved = localStorage.getItem(`reservation_${gift.id}`);
-      if (saved === 'reserved' || saved === 'confirmed') {
-        setReservationStatus(saved as any);
+      if (saved) {
+        const confirmed = { ...saved, status: 'confirmed' as const };
+        setReservationProof(confirmed);
+        localStorage.setItem(storageKey, JSON.stringify(confirmed));
       }
       return;
     }
-    const saved = localStorage.getItem(`reservation_${gift.id}`);
-    if (saved && gift.status === 'disponivel') {
-      localStorage.removeItem(`reservation_${gift.id}`);
+    if (gift.status === 'reservado') {
+      if (saved?.reservationId && saved.token) {
+        setReservationProof(saved);
+        setReservationStatus(saved.status);
+      }
+      return;
+    }
+    if (raw && gift.status === 'disponivel') {
+      localStorage.removeItem(storageKey);
+      setReservationProof(null);
       setReservationStatus('idle');
     }
   }, [gift.id, gift.status]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
-    if (isModalOpen && countdown > 0) {
-      timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-    } else if (isModalOpen && countdown === 0) {
+    if (isRedirectModalOpen && countdown > 0) {
+      timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    } else if (isRedirectModalOpen && countdown === 0) {
       window.open(gift.store_link || '#', '_blank');
-      setIsModalOpen(false);
+      setIsRedirectModalOpen(false);
       setReservationStatus('reserved');
-      localStorage.setItem(`reservation_${gift.id}`, 'reserved');
+      if (reservationProof) {
+        const reserved = { ...reservationProof, status: 'reserved' as const };
+        setReservationProof(reserved);
+        localStorage.setItem(`reservation_${gift.id}`, JSON.stringify(reserved));
+      }
       onStatusChange?.();
     }
     return () => clearTimeout(timer);
-  }, [isModalOpen, countdown, gift.store_link, gift.id, onStatusChange]);
+  }, [isRedirectModalOpen, countdown, gift.store_link, gift.id, onStatusChange, reservationProof]);
 
-  const handleBuyClick = useCallback(async () => {
+  useEffect(() => {
+    if (!isRedirectModalOpen) {
+      setCanCloseRedirect(false);
+      return;
+    }
+    const t = setTimeout(() => setCanCloseRedirect(true), 3000);
+    return () => clearTimeout(t);
+  }, [isRedirectModalOpen]);
+
+  const openStore = useCallback(() => {
+    window.open(gift.store_link || '#', '_blank');
+  }, [gift.store_link]);
+
+  const handleGuestSubmit = useCallback(async () => {
+    const name = guestName.trim();
+    if (!name) {
+      showToast('Informe seu nome para reservar o presente.', 'error');
+      return;
+    }
+    if (guestEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
+      showToast('E-mail inválido.', 'error');
+      return;
+    }
+
+    setIsGuestModalOpen(false);
     setReservationStatus('reserving');
-    await createReservation(gift.id);
-    setIsModalOpen(true);
+
+    const result = await createReservation({
+      giftId: gift.id,
+      guestName: name,
+      guestEmail: guestEmail.trim() || undefined,
+    });
+
+    if (result.conflict) {
+      setReservationStatus('idle');
+      showToast('Ops! Este presente acabou de ser reservado por outra pessoa.', 'error');
+      return;
+    }
+
+    if (result.error) {
+      setReservationStatus('idle');
+      showToast(result.error, 'error');
+      return;
+    }
+
+    if (!result.reservation) {
+      setReservationStatus('idle');
+      showToast('Não foi possível reservar. Tente novamente.', 'error');
+      return;
+    }
+
+    const proof: StoredReservation = {
+      reservationId: result.reservation.id,
+      token: result.reservation.confirmation_token || 'demo',
+      status: 'reserved',
+    };
+    setReservationProof(proof);
+    localStorage.setItem(`reservation_${gift.id}`, JSON.stringify(proof));
+
+    setIsRedirectModalOpen(true);
     setCountdown(10);
-  }, [gift.id]);
+  }, [gift.id, guestName, guestEmail, showToast]);
 
   const handleConfirmPurchase = useCallback(async () => {
+    if (!reservationProof) {
+      showToast('Esta reserva não pode ser confirmada neste navegador.', 'error');
+      return;
+    }
     setIsConfirmModalOpen(false);
     setReservationStatus('confirming');
-    await confirmReservation(gift.id);
-    setReservationStatus('confirmed');
-    localStorage.setItem(`reservation_${gift.id}`, 'confirmed');
-    onStatusChange?.();
-  }, [gift.id, onStatusChange]);
+    try {
+      await confirmReservation(reservationProof.reservationId, reservationProof.token, gift.id);
+      setReservationStatus('confirmed');
+      const confirmed = { ...reservationProof, status: 'confirmed' as const };
+      setReservationProof(confirmed);
+      localStorage.setItem(`reservation_${gift.id}`, JSON.stringify(confirmed));
+      showToast('Compra confirmada! Obrigado pelo carinho.');
+      onStatusChange?.();
+    } catch {
+      setReservationStatus('reserved');
+      showToast('Erro ao confirmar. Tente novamente.', 'error');
+    }
+  }, [gift.id, onStatusChange, reservationProof, showToast]);
+
+  const closeRedirectModal = () => {
+    if (!canCloseRedirect) return;
+    setIsRedirectModalOpen(false);
+    setCountdown(10);
+  };
 
   if (gift.status === 'comprado' || reservationStatus === 'confirmed') {
     return (
@@ -80,6 +188,26 @@ export default function GiftReservationFlow({ gift, onStatusChange }: Props) {
     );
   }
 
+  const reservedByOther =
+    gift.status === 'reservado' &&
+    reservationStatus !== 'reserved' &&
+    reservationStatus !== 'confirming';
+
+  if (reservedByOther) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="bg-slate-50 border border-slate-200 rounded-lg p-6 text-center"
+      >
+        <p className="text-slate-700 font-medium font-heading">Este presente está reservado</p>
+        <p className="text-sm text-slate-500 mt-1 font-light">
+          Outro convidado reservou este item. Escolha outro presente da lista.
+        </p>
+      </motion.div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <AnimatePresence mode="wait">
@@ -89,7 +217,7 @@ export default function GiftReservationFlow({ gift, onStatusChange }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={handleBuyClick}
+            onClick={() => setIsGuestModalOpen(true)}
             className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-4 px-8 rounded-full transition-all duration-300 shadow-soft hover:shadow-elegant active:scale-[0.98] flex items-center justify-center gap-2 uppercase text-sm tracking-wider"
           >
             <ShoppingBag className="w-5 h-5" />
@@ -110,7 +238,7 @@ export default function GiftReservationFlow({ gift, onStatusChange }: Props) {
           </motion.button>
         )}
 
-        {(reservationStatus === 'reserved' || (gift.status === 'reservado' && reservationStatus !== 'confirming')) && (
+        {reservationStatus === 'reserved' && (
           <motion.div
             key="reserved"
             initial={{ opacity: 0 }}
@@ -140,18 +268,65 @@ export default function GiftReservationFlow({ gift, onStatusChange }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Redirect countdown modal */}
-      <Modal isOpen={isModalOpen} onClose={() => {}}>
+      <Modal isOpen={isGuestModalOpen} onClose={() => setIsGuestModalOpen(false)}>
+        <div className="space-y-5">
+          <h3 className="font-heading text-2xl font-light text-[#3d3530] text-center">
+            Antes de reservar
+          </h3>
+          <p className="text-sm text-[#7a6e65] font-light text-center">
+            Informe seus dados para o casal saber quem reservou este presente.
+          </p>
+          <div>
+            <label className="block text-sm text-[#6a5d54] mb-1">Seu nome *</label>
+            <input
+              type="text"
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              maxLength={100}
+              className="w-full rounded-lg border border-[#e0d0c8] px-4 py-2.5 text-[#3d3530] focus:outline-none focus:ring-2 focus:ring-primary-300"
+              placeholder="Como você quer aparecer"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-[#6a5d54] mb-1">E-mail (opcional)</label>
+            <input
+              type="email"
+              value={guestEmail}
+              onChange={(e) => setGuestEmail(e.target.value)}
+              className="w-full rounded-lg border border-[#e0d0c8] px-4 py-2.5 text-[#3d3530] focus:outline-none focus:ring-2 focus:ring-primary-300"
+              placeholder="seu@email.com"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleGuestSubmit}
+            className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 rounded-full transition-colors"
+          >
+            Continuar para a loja
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isRedirectModalOpen}
+        onClose={canCloseRedirect ? closeRedirectModal : undefined}
+      >
         <div className="text-center space-y-6">
           <h3 className="font-heading text-2xl font-light text-[#3d3530]">Redirecionando...</h3>
           <p className="text-[#7a6e65] font-light">
-            Você será levado para a loja <strong className="font-medium">{gift.store_name}</strong> para finalizar a compra.
+            Você será levado para a loja{' '}
+            <strong className="font-medium">{gift.store_name}</strong> para finalizar a compra.
           </p>
           <div className="relative w-20 h-20 mx-auto">
             <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
               <circle cx="40" cy="40" r="36" fill="none" stroke="#f0d4dc" strokeWidth="4" />
               <motion.circle
-                cx="40" cy="40" r="36" fill="none" stroke="#b06a82" strokeWidth="4"
+                cx="40"
+                cy="40"
+                r="36"
+                fill="none"
+                stroke="#b06a82"
+                strokeWidth="4"
                 strokeLinecap="round"
                 strokeDasharray={226}
                 initial={{ strokeDashoffset: 0 }}
@@ -163,19 +338,35 @@ export default function GiftReservationFlow({ gift, onStatusChange }: Props) {
               {countdown}
             </span>
           </div>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={openStore}
+              className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-2.5 rounded-full text-sm"
+            >
+              Abrir loja agora
+            </button>
+            {canCloseRedirect && (
+              <button
+                type="button"
+                onClick={closeRedirectModal}
+                className="text-sm text-[#8a7e76] hover:text-primary-600"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
           <div className="bg-blush/30 text-primary-800 p-4 rounded-lg text-sm font-light">
-            <strong className="font-medium">Importante:</strong> Após a compra, volte a esta página e clique em "Já comprei" para confirmar.
+            <strong className="font-medium">Importante:</strong> Após a compra, volte e clique em
+            &quot;Já comprei&quot; para confirmar.
           </div>
         </div>
       </Modal>
 
-      {/* Confirm purchase modal */}
       <Modal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)}>
         <div className="text-center space-y-6">
           <h3 className="font-heading text-2xl font-light text-[#3d3530]">Confirmar Compra</h3>
-          <p className="text-[#7a6e65] font-light">
-            Você confirma que já realizou a compra na loja?
-          </p>
+          <p className="text-[#7a6e65] font-light">Você confirma que já realizou a compra na loja?</p>
           <div className="flex gap-3 justify-center pt-2">
             <button
               onClick={() => setIsConfirmModalOpen(false)}

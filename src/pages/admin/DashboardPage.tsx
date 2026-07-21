@@ -10,20 +10,36 @@ import {
   Package,
   TrendingUp,
   WalletCards,
+  AlertCircle,
 } from 'lucide-react';
 import MetricCard from '@/components/admin/MetricCard';
 import { useGifts } from '@/hooks/useGifts';
 import { formatCurrency, parseCurrencyValue } from '@/lib/utils';
 
 export default function DashboardPage() {
-  const { gifts, loading } = useGifts();
+  const { data: gifts = [], isLoading, error, refetch } = useGifts();
   const { domain } = useParams();
   const [showAllBought, setShowAllBought] = useState(false);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-primary-400" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-20 text-center">
+        <AlertCircle className="h-8 w-8 text-red-400" />
+        <p className="text-slate-500">Erro ao carregar dados.</p>
+        <button
+          onClick={() => refetch()}
+          className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+        >
+          Tentar novamente
+        </button>
       </div>
     );
   }

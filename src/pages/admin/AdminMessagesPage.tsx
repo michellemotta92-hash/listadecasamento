@@ -96,7 +96,7 @@ export default function AdminMessagesPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_200px]">
           <AdminSearchInput value={search} onChange={setSearch} placeholder="Buscar por nome ou mensagem..." />
-          <StatusFilter value={filter} onChange={setFilter} options={messageFilterOptions} />
+          <StatusFilter<MessageFilter> value={filter} onChange={setFilter} options={messageFilterOptions} />
         </div>
       </div>
 

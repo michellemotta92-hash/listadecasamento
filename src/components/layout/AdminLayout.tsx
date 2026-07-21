@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useParams } from 'react-router';
 import { motion } from 'motion/react';
-import { CalendarClock, ExternalLink, Gift, LayoutDashboard, LogOut, MessageSquare, Settings, Users } from 'lucide-react';
+import { CalendarClock, CheckSquare2, ExternalLink, Gift, LayoutDashboard, LogOut, MessageSquare, Settings, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSiteConfig } from '@/lib/services/site-config';
+import { useSiteConfig } from '@/hooks/useSiteConfig';
 import { cn } from '@/lib/utils';
 import { PublicPage } from '@/types';
 
 const navItems: { label: string; path: string; icon: any; publicPage?: PublicPage }[] = [
   { label: 'Dashboard', path: '', icon: LayoutDashboard },
+  { label: 'Planejamento', path: '/planejamento', icon: CheckSquare2 },
   { label: 'Presentes', path: '/presentes', icon: Gift, publicPage: 'presentes' },
   { label: 'Reservas', path: '/reservas', icon: CalendarClock },
   { label: 'Recados', path: '/recados', icon: MessageSquare, publicPage: 'recados' },
@@ -20,13 +20,8 @@ export default function AdminLayout() {
   const { domain } = useParams();
   const { signOut } = useAuth();
   const location = useLocation();
-  const [hiddenPages, setHiddenPages] = useState<PublicPage[]>([]);
-
-  useEffect(() => {
-    getSiteConfig().then(config => {
-      setHiddenPages(config.hidden_pages || []);
-    });
-  }, []);
+  const { data: config } = useSiteConfig();
+  const hiddenPages = config?.hidden_pages || [];
 
   const handleLogout = async () => {
     await signOut();

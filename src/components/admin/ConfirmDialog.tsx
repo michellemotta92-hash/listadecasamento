@@ -5,9 +5,9 @@ interface ConfirmDialogProps {
   open: boolean;
   title: string;
   message: string;
-  confirmLabel: string;
-  cancelLabel: string;
-  loading: boolean;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }

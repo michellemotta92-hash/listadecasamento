@@ -11,7 +11,6 @@ import {
   Package,
   Pencil,
   Plus,
-  RefreshCw,
   RotateCcw,
   Star,
   Trash2,
@@ -26,7 +25,6 @@ import XlsxUploader from '@/components/admin/XlsxUploader';
 import { useGifts } from '@/hooks/useGifts';
 import { formatCurrency, parseCurrencyValue } from '@/lib/utils';
 import { addGift, deleteGift, reorderGifts, updateGift } from '@/lib/services/gifts';
-import { api } from '@/lib/api';
 import { GiftItem, GiftStatus, RoomType } from '@/types';
 
 type GiftStatusFilter = 'todos' | GiftStatus;
@@ -66,7 +64,6 @@ export default function AdminGiftsPage() {
   const [editingGift, setEditingGift] = useState<GiftItem | null>(null);
   const [creatingNew, setCreatingNew] = useState(false);
   const [duplicating, setDuplicating] = useState<string | null>(null);
-  const [regenerating, setRegenerating] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<GiftItem | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -114,19 +111,6 @@ export default function AdminGiftsPage() {
       refresh();
     } catch {
       setActionError('Não foi possível atualizar o destaque do presente.');
-    }
-  };
-
-  const handleRegenerateImage = async (gift: GiftItem) => {
-    setActionError('');
-    setRegenerating(gift.id);
-    try {
-      await api.post(`/gifts/${gift.id}/regenerate-image`, {});
-      refresh();
-    } catch {
-      setActionError('Não foi possível regenerar a imagem. Tente novamente.');
-    } finally {
-      setRegenerating(null);
     }
   };
 
@@ -232,8 +216,8 @@ export default function AdminGiftsPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_190px_190px_auto]">
           <AdminSearchInput value={search} onChange={setSearch} placeholder="Buscar por nome, descrição ou variação..." />
-          <StatusFilter value={statusFilter} onChange={updateStatusFilter} options={statusOptions} />
-          <StatusFilter value={roomFilter} onChange={setRoomFilter} options={roomOptions} />
+          <StatusFilter<GiftStatusFilter> value={statusFilter} onChange={updateStatusFilter} options={statusOptions} />
+          <StatusFilter<RoomFilter> value={roomFilter} onChange={setRoomFilter} options={roomOptions} />
           <button
             type="button"
             onClick={clearFilters}
@@ -334,9 +318,6 @@ export default function AdminGiftsPage() {
                         </button>
                         <button onClick={() => handleDuplicate(gift)} disabled={duplicating === gift.id} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-green-50 hover:text-green-600 disabled:opacity-50" title="Duplicar item">
                           {duplicating === gift.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
-                        </button>
-                        <button onClick={() => handleRegenerateImage(gift)} disabled={regenerating === gift.id} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-blue-50 hover:text-blue-600 disabled:opacity-50" title="Regenerar imagem">
-                          {regenerating === gift.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                         </button>
                         {gift.store_link && (
                           <a href={gift.store_link} target="_blank" rel="noreferrer" className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600" title="Ver na loja">

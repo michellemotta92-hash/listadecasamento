@@ -1,6 +1,25 @@
 export type RoomType = 'sala' | 'cozinha' | 'banheiro' | 'lavanderia' | 'quarto' | 'outro';
 export type GiftStatus = 'disponivel' | 'reservado' | 'comprado';
 export type ReservationStatus = 'pendente' | 'confirmada' | 'cancelada' | 'expirada';
+export type TaskStatus = 'todo' | 'in_progress' | 'blocked' | 'done' | 'cancelled';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface EventTask {
+  id: string;
+  organization_id: string;
+  tenant_id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  due_date: string | null;
+  visibility: 'internal' | 'client';
+  assigned_to_user_id: string | null;
+  completed_at: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Tenant {
   id: string;
@@ -24,11 +43,24 @@ export interface GiftItem {
   status: GiftStatus;
   image_url: string | null;
   is_featured: boolean;
+  sort_order?: number;
   created_at: string;
   updated_at: string;
 }
 
-export type PublicPage = 'presentes' | 'recados' | 'confirmar';
+export type PixKeyType = 'cpf' | 'email' | 'phone' | 'random';
+
+export interface PixConfig {
+  enabled: boolean;
+  title?: string;
+  description?: string;
+  key_type: PixKeyType;
+  key: string;
+  beneficiary_name?: string;
+  qr_image_url?: string;
+}
+
+export type PublicPage = 'presentes' | 'recados' | 'confirmar' | 'pix';
 
 export interface PageTexts {
   home_subtitle?: string;
@@ -55,6 +87,8 @@ export interface SiteConfig {
   hidden_pages?: PublicPage[];
   page_texts?: PageTexts;
   theme?: string;
+  pix?: PixConfig;
+  meta_description?: string;
 }
 
 export interface GuestMessage {
@@ -89,4 +123,6 @@ export interface GiftReservation {
   expires_at: string;
   created_at: string;
   updated_at: string;
+  /** Returned only once, when a public reservation is created. */
+  confirmation_token?: string;
 }

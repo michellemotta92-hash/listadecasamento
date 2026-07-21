@@ -7,7 +7,7 @@ interface MetricCardProps {
   sub: ReactNode;
   icon: LucideIcon;
   color: string;
-  progress: number;
+  progress?: number;
 }
 
 export default function MetricCard({ label, value, sub, icon: Icon, color, progress }: MetricCardProps) {

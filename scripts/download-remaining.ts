@@ -63,7 +63,7 @@ function searchPexels(query: string): Promise<string | null> {
     const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1&orientation=square`;
     https.get(url, {
       headers: {
-        'Authorization': 'bkHQpGOdBpNJfnMbHYH8YAi2GcMCMXMeBIm0DfGqLZHCr2UPuKC6DU2q',
+        'Authorization': process.env.PEXELS_API_KEY || '',
         'User-Agent': 'Mozilla/5.0',
       },
       timeout: 10000,
@@ -120,7 +120,7 @@ async function updateDatabase(successMap: Map<string, string>) {
   try {
     const pg = await import('pg');
     const pool = new pg.default.Pool({
-      connectionString: process.env.DATABASE_URL || 'postgresql://postgres:zlWdDNNYCQzDvqbNlfzhLwkSJZjtRYdG@junction.proxy.rlwy.net:55979/railway',
+      connectionString: process.env.DATABASE_URL,
       ssl: false,
     });
     const { rows } = await pool.query('SELECT id FROM gift_items ORDER BY created_at ASC');

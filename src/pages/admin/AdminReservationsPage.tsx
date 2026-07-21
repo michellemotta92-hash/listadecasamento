@@ -93,7 +93,7 @@ export default function AdminReservationsPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_200px]">
           <AdminSearchInput value={search} onChange={setSearch} placeholder="Buscar por convidado, e-mail ou presente..." />
-          <StatusFilter value={statusFilter} onChange={setStatusFilter} options={statusOptions} />
+          <StatusFilter<ReservationStatusFilter> value={statusFilter} onChange={setStatusFilter} options={statusOptions} />
         </div>
       </div>
 

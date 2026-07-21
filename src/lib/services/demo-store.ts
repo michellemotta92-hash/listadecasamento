@@ -60,7 +60,7 @@ class DemoStore {
   }
 
   // Reservations
-  createReservation(giftId: string) {
+  createReservation(giftId: string, guestName: string, guestEmail?: string) {
     const gift = this.getGiftById(giftId);
     if (!gift || gift.status !== 'disponivel') return null;
 
@@ -70,8 +70,8 @@ class DemoStore {
       id: Math.random().toString(36).substring(7),
       gift_item_id: giftId,
       tenant_id: gift.tenant_id,
-      guest_name: 'Convidado Demo',
-      guest_email: 'demo@example.com',
+      guest_name: guestName,
+      guest_email: guestEmail || null,
       status: 'pendente',
       expires_at: new Date(Date.now() + 20 * 60000).toISOString(),
       created_at: new Date().toISOString(),

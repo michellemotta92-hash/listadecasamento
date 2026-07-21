@@ -7,7 +7,7 @@ interface StatusFilterProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   options: StatusFilterOption<T>[];
-  label: string;
+  label?: string;
 }
 
 export default function StatusFilter<T extends string>({ value, onChange, options, label }: StatusFilterProps<T>) {

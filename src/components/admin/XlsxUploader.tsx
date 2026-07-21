@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import * as XLSX from 'xlsx';
 import { CheckCircle2, FileSpreadsheet, Loader2, XCircle } from 'lucide-react';
 import { addGift } from '@/lib/services/gifts';
 import { guessRoom, parseBRLPrice } from '@/lib/utils';
@@ -15,8 +14,8 @@ export default function XlsxUploader({ onImportComplete }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-      setResult({ success: false, count: 0, message: 'Por favor, envie um arquivo .xlsx ou .xls' });
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      setResult({ success: false, count: 0, message: 'Por favor, envie um arquivo .xlsx' });
       return;
     }
 
@@ -24,16 +23,13 @@ export default function XlsxUploader({ onImportComplete }: Props) {
     setResult(null);
 
     try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      const { readSheet } = await import('read-excel-file/browser');
+      const rows = await readSheet(file);
 
       let headerIdx = -1;
       for (let i = 0; i < Math.min(rows.length, 10); i++) {
         const row = rows[i];
-        if (row && row.some((cell: any) => typeof cell === 'string' && /[ií]tem/i.test(cell))) {
+        if (row && row.some((cell) => typeof cell === 'string' && /[ií]tem/i.test(cell))) {
           headerIdx = i;
           break;
         }
@@ -103,7 +99,7 @@ export default function XlsxUploader({ onImportComplete }: Props) {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];

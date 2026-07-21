@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link } from 'react-router';
 import { motion } from 'motion/react';
 import { Calendar, MapPin, Gift, Heart } from 'lucide-react';
-import { getSiteConfig } from '@/lib/services/site-config';
-import { SiteConfig } from '@/types';
+import { useTenant } from '@/contexts/TenantContext';
+import { useSiteConfig } from '@/hooks/useSiteConfig';
 import WeddingCountdown from '@/components/public/WeddingCountdown';
 import RegistryProgress from '@/components/public/RegistryProgress';
 
@@ -29,16 +28,10 @@ function formatLocation(location?: string): string {
 }
 
 export default function HomePage() {
-  const { domain } = useParams();
-  const [heroImage, setHeroImage] = useState('https://picsum.photos/seed/wedding-elegant/1920/1080');
-  const [config, setConfig] = useState<SiteConfig>({});
-
-  useEffect(() => {
-    getSiteConfig().then(c => {
-      setConfig(c);
-      if (c.hero_image_url) setHeroImage(c.hero_image_url);
-    });
-  }, []);
+  const { slug } = useTenant();
+  const { data: config = {} } = useSiteConfig();
+  const heroImage =
+    config.hero_image_url || 'https://picsum.photos/seed/wedding-elegant/1920/1080';
 
   const coupleName = config.couple_name || 'Mi & John';
   const eventDateStr = formatEventDate(config.event_date, config.event_time);
@@ -113,7 +106,7 @@ export default function HomePage() {
             title: 'Presentes',
             content: t.home_gifts_card || 'Veja nossa lista de\npresentes sugeridos.',
             delay: 0.6,
-            link: `/${domain}/presentes`,
+            link: `/${slug}/presentes`,
           },
         ].map((card) => (
           <motion.div

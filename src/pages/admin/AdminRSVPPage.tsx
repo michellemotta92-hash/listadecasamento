@@ -99,7 +99,7 @@ export default function AdminRSVPPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_200px]">
           <AdminSearchInput value={search} onChange={setSearch} placeholder="Buscar por nome, e-mail, restrição ou mensagem..." />
-          <StatusFilter value={filter} onChange={setFilter} options={rsvpFilterOptions} />
+          <StatusFilter<RSVPFilter> value={filter} onChange={setFilter} options={rsvpFilterOptions} />
         </div>
       </div>
 
