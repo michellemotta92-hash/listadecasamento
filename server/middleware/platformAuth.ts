@@ -17,12 +17,17 @@ declare global {
 }
 
 export function signPlatformToken(payload: Omit<PlatformAuthPayload, 'type'>): string {
-  return jwt.sign({ ...payload, type: 'platform' }, getJwtSecret(), { expiresIn: '7d' });
+  return jwt.sign({ ...payload, type: 'platform' }, getJwtSecret(), {
+    algorithm: 'HS256',
+    expiresIn: '7d',
+  });
 }
 
 export function verifyPlatformToken(token: string): PlatformAuthPayload | null {
   try {
-    const decoded = jwt.verify(token, getJwtSecret()) as PlatformAuthPayload;
+    const decoded = jwt.verify(token, getJwtSecret(), {
+      algorithms: ['HS256'],
+    }) as PlatformAuthPayload;
     if (decoded.type !== 'platform') return null;
     return decoded;
   } catch {

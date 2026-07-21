@@ -179,6 +179,10 @@ api.patch('/gifts/:id', requirePlatformAuth, requireTenantAccess, requireTenantE
   res.json({ ok: true });
 });
 
+api.get('/health/live', (_req: Request, res: Response) => {
+  res.json({ ok: true });
+});
+
 // Planning tasks
 api.get('/tasks', requirePlatformAuth, requireTenantAccess, async (req: Request, res: Response) => {
   const tasks = await query(

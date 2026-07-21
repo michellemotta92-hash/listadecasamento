@@ -3,6 +3,7 @@ import path from 'path';
 import { pool } from './db.js';
 
 const migrationsDir = path.join(process.cwd(), 'supabase', 'migrations');
+const MIGRATION_LOCK_KEY = 1843027119;
 
 async function migrate() {
   const files = fs
@@ -11,7 +12,11 @@ async function migrate() {
     .sort();
 
   const client = await pool.connect();
+  let lockAcquired = false;
   try {
+    await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_KEY]);
+    lockAcquired = true;
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS app_migrations (
         name TEXT PRIMARY KEY,
@@ -41,6 +46,11 @@ async function migrate() {
 
     console.log(`Migration complete. ${files.length} migration file(s) available.`);
   } finally {
+    if (lockAcquired) {
+      await client
+        .query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_KEY])
+        .catch((error) => console.error('Failed to release migration lock:', error));
+    }
     client.release();
     await pool.end();
   }

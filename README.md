@@ -77,11 +77,13 @@ Não execute migrações automaticamente contra produção sem backup e janela d
 
 ```bash
 npm run check
-npm run migrate
-npm run start
+npm run build
+npm run start:production
 ```
 
 Variáveis obrigatórias: `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=production`, `CORS_ORIGIN` e `TRUST_PROXY_HOPS` conforme a topologia do proxy.
+
+Para publicar no EasyPanel, siga o runbook completo em [docs/DEPLOY-EASYPANEL.md](docs/DEPLOY-EASYPANEL.md). O repositório inclui Dockerfile multi-stage, migração automática serializada, healthcheck e encerramento gracioso.
 
 Antes de cobrar clientes, ainda é necessário conectar o gateway de billing/webhooks, recuperação/verificação de e-mail, object storage, observabilidade, backups testados, termos/privacidade e testes E2E em ambiente isolado. A aplicação registra solicitações de upgrade, mas não ativa um plano a partir do retorno do navegador.
 

@@ -29,6 +29,10 @@ app.use((req, res, next) => {
   res.header('X-Content-Type-Options', 'nosniff');
   res.header('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.header('X-Frame-Options', 'SAMEORIGIN');
+  res.header(
+    'Content-Security-Policy',
+    "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'"
+  );
   if (req.method === 'OPTIONS') {
     if (requestOrigin && !isDev && !allowedOrigins.includes(requestOrigin)) return res.sendStatus(403);
     return res.sendStatus(204);
@@ -37,6 +41,10 @@ app.use((req, res, next) => {
 });
 
 app.use('/api', api);
+
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'Endpoint não encontrado' });
+});
 
 app.use('/api', (err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('Unhandled API error:', err.message);
@@ -65,9 +73,17 @@ app.get('/db-images/:filename', async (req, res) => {
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
 const distPath = path.join(process.cwd(), 'dist');
-app.use(express.static(distPath));
+app.use(express.static(distPath, {
+  maxAge: '1h',
+  setHeaders: (res, filePath) => {
+    if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  },
+}));
 
 app.use((_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
@@ -82,9 +98,39 @@ async function runExpireJob() {
   }
 }
 
-setInterval(runExpireJob, 60_000);
+const expireJobTimer = setInterval(runExpireJob, 60_000);
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://localhost:${PORT}`);
   runExpireJob();
 });
+
+let shuttingDown = false;
+
+async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  clearInterval(expireJobTimer);
+  console.log(`${signal} received. Shutting down gracefully...`);
+
+  const forceExitTimer = setTimeout(() => {
+    console.error('Graceful shutdown timed out.');
+    process.exit(1);
+  }, 10_000);
+  forceExitTimer.unref();
+
+  server.close(async (error) => {
+    if (error) console.error('HTTP server shutdown error:', error);
+    try {
+      await pool.end();
+    } catch (poolError) {
+      console.error('Database pool shutdown error:', poolError);
+    } finally {
+      clearTimeout(forceExitTimer);
+      process.exit(error ? 1 : 0);
+    }
+  });
+}
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));

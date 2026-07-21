@@ -7,6 +7,10 @@ if (!JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is required');
 }
 
+if (process.env.NODE_ENV === 'production' && Buffer.byteLength(JWT_SECRET, 'utf8') < 32) {
+  throw new Error('JWT_SECRET must contain at least 32 bytes in production');
+}
+
 export interface AuthPayload {
   userId: string;
   username: string;
@@ -22,12 +26,15 @@ declare global {
 }
 
 export function signToken(payload: Omit<AuthPayload, 'type'>): string {
-  return jwt.sign({ ...payload, type: 'legacy-admin' }, JWT_SECRET, { expiresIn: '24h' });
+  return jwt.sign({ ...payload, type: 'legacy-admin' }, JWT_SECRET, {
+    algorithm: 'HS256',
+    expiresIn: '24h',
+  });
 }
 
 export function verifyToken(token: string): AuthPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as Partial<AuthPayload>;
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as Partial<AuthPayload>;
     if (decoded.type !== 'legacy-admin' || !decoded.userId || !decoded.username) return null;
     return decoded as AuthPayload;
   } catch {
